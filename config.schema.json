@@ -1,0 +1,34 @@
+{
+    "pluginAlias": "GrumpTechVolumeMonitorPlatform",
+    "pluginType": "platform",
+    "singular": true,
+    "headerDisplay": "This plugin is provided by [GrumpTech](https://github.com/pricemi115/)",
+    "footerDisplay": "Be kind.....to everyone",
+    "schema": {
+        "type": "object",
+        "properties": {
+            "settings": {
+                "title": "Settings",
+                "type": "object",
+                "properties": {
+                    "polling_interval": {
+                        "title": "Polling Interval",
+                        "description": "The time in hours to report updates for mounted volumes.",
+                        "type": "number",
+                        "default": "1",
+                        "required": true
+                    },
+                    "alarm_threshold": {
+                        "title": "Low Space Alarm Threshold",
+                        "description": "The threshold for indicating an alert when remaining space gets low. Expressed as a percentage.",
+                        "type": "number",
+                        "default": "15",
+                        "required": true
+                    }
+                }
+            }
+        }
+    },
+    "form": null,
+    "display": null
+}

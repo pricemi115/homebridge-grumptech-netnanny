@@ -1,0 +1,21 @@
+{
+  "bridge": {
+    "name": "GrumpTech Homebridge Volume Monitor",
+    "username": "F8:C8:C6:0B:69:93",
+    "port": 51900,
+    "pin": "000-00-000"
+  },
+
+  "description": "Platform for the GrumpTech Homebridge Volume Monitor",
+
+  "platforms": [
+    {
+      "platform" : "GrumpTechVolumeMonitorPlatform",
+      "name" : "homebridge-grumptech-volmon",
+      "settings": {
+        "polling_interval": 1,
+        "alarm_threshold": 15
+      }
+    }
+  ]
+}

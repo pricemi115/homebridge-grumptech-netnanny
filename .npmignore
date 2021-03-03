@@ -1,0 +1,17 @@
+# The following entries will prevent git-tracked files
+# from being deployed
+
+# Debug Folder
+debug/
+
+# Node Modules
+node_modules/
+
+# Development Files & Folders
+debug.env
+.vscode/
+.git/
+
+# Source Files
+src/
+rollup.config.js

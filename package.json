@@ -1,0 +1,58 @@
+{
+  "name": "homebridge-grumptech-volmon",
+  "displayName": "Homebridge Volume Monitor",
+  "version": "1.0.0",
+  "description": "Free Space monitor for mounted volumes.",
+  "main": "dist/homebridge-grumptech-volmon.js",
+  "files": [
+    "dist/homebridge-grumptech-volmon.js",
+    "config/config-sample.json",
+    "config.schema.json",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE.md",
+    "assets/"
+  ],
+  "config_info": {
+    "remarks": [
+      "The 'plugin' and 'platform' names MUST match the names called out in the 'platforms' section of the active config.json file.",
+      "If these values are changed, the module will need to be rebuilt. Run 'npm run build'."
+    ],
+    "plugin": "homebridge-grumptech-volmon",
+    "platform": "GrumpTechVolumeMonitorPlatform"
+  },
+  "scripts": {
+    "prepare": "npm run build",
+    "run": "DEBUG=homebridge* homebridge -D -Q -P ./dist -U ./debug",
+    "build": "rollup -c rollup.config.js"
+  },
+  "engines": {
+    "homebridge": ">=1.1.0"
+  },
+  "keywords": [
+    "homebridge",
+    "homebridge-plugin",
+    "file system",
+    "snapshot",
+    "volume",
+    "macOS"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pricemi115/homebridge-grumptech-volmon.git"
+  },
+  "bugs": {
+    "url": "https://github.com/pricemi115/homebridge-grumptech-volmon/issues"
+  },
+  "author": "GrumpTech (Michael J. Price)",
+  "license": "ISC",
+  "devDependencies": {
+    "@rollup/plugin-json": "^4.1.0",
+    "homebridge": "^1.1.7",
+    "rollup-plugin-node-polyfills": "^0.2.1"
+  },
+  "dependencies": {
+    "debug": "^4.3.1",
+    "plist": "^3.0.1"
+  }
+}
