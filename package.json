@@ -1,11 +1,11 @@
 {
-  "name": "homebridge-grumptech-volmon",
-  "displayName": "Homebridge Volume Monitor",
+  "name": "homebridge-grumptech-netnanny",
+  "displayName": "Homebridge Net Nanny",
   "version": "1.0.0",
-  "description": "Free Space monitor for mounted volumes.",
-  "main": "dist/homebridge-grumptech-volmon.js",
+  "description": "Network performance moniotor.",
+  "main": "dist/homebridge-grumptech-netnanny.js",
   "files": [
-    "dist/homebridge-grumptech-volmon.js",
+    "dist/homebridge-grumptech-netnanny.js",
     "config/config-sample.json",
     "config.schema.json",
     "README.md",
@@ -18,8 +18,8 @@
       "The 'plugin' and 'platform' names MUST match the names called out in the 'platforms' section of the active config.json file.",
       "If these values are changed, the module will need to be rebuilt. Run 'npm run build'."
     ],
-    "plugin": "homebridge-grumptech-volmon",
-    "platform": "GrumpTechVolumeMonitorPlatform"
+    "plugin": "homebridge-grumptech-netnanny",
+    "platform": "GrumpTechHomebridgeNetNanny"
   },
   "scripts": {
     "prepare": "npm run build",
@@ -32,17 +32,16 @@
   "keywords": [
     "homebridge",
     "homebridge-plugin",
-    "file system",
-    "snapshot",
-    "volume",
-    "macOS"
+    "network",
+    "ping",
+    "performance"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/pricemi115/homebridge-grumptech-volmon.git"
+    "url": "https://github.com/pricemi115/homebridge-grumptech-netnanny.git"
   },
   "bugs": {
-    "url": "https://github.com/pricemi115/homebridge-grumptech-volmon/issues"
+    "url": "https://github.com/pricemi115/homebridge-grumptech-netnanny/issues"
   },
   "author": "GrumpTech (Michael J. Price)",
   "license": "ISC",
