@@ -273,8 +273,14 @@ class NetworkPerformanceMonitorPlatform {
 
             // Register for the 'ready' event.
             target.on('ready', this._bindPingReady);
-            // Start the Network Performance Target.
-            target.Start();
+
+            // Get the accessory to see if it is active or not.
+            const accessory = this._accessories.get(target.ID);
+            // Is the accessory active?
+            if (this._getAccessorySwitchState(accessory)) {
+                // Start the Network Performance Target.
+                target.Start();
+            }
         }
     }
 
@@ -452,11 +458,11 @@ class NetworkPerformanceMonitorPlatform {
         });
 
         // Does this accessory have a Switch service?
+        let switchState = true;
         const serviceSwitch = accessory.getService(_hap.Service.Switch);
         if ((serviceSwitch !== undefined) &&
             (serviceSwitch instanceof _hap.Service.Switch)) {
             // Set the switch to the stored setting (the default is on).
-            let switchState = true;
             const theSettings = accessory.context.SETTINGS;
             if ((theSettings !== undefined) &&
                 (typeof(theSettings) === 'object') &&
@@ -522,6 +528,7 @@ class NetworkPerformanceMonitorPlatform {
         if ((values === undefined) || (typeof(values) !== 'object') ||
             (!values.hasOwnProperty('level'))     || ((typeof(values.level) !== 'number')       || (values.level instanceof Error)) ||
             (!values.hasOwnProperty('fault'))     || ((typeof(values.fault) !== 'boolean')      || (values.fault instanceof Error)) ||
+            (!values.hasOwnProperty('active'))    || ((typeof(values.active) !== 'boolean')     || (values.active instanceof Error)) ||
             (!values.hasOwnProperty('resetPeak')) || ((typeof(values.resetPeak) !== 'boolean')  || (values.resetPeak instanceof Error)) ) {
             throw new TypeError(`values must be an object with properties named 'level' (number or Error) and 'fault' (boolean or Error) and 'resetPeak' (boolean or Error)`);
         }
@@ -533,10 +540,14 @@ class NetworkPerformanceMonitorPlatform {
             try {
                 // Determine the fault code.
                 const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT : _hap.Characteristic.StatusFault.NO_FAULT);
-                // Determine the low battery status (based on loss)
+                // Determine the low battery status based on being active or not.
+                const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
                 serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
-                serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxideLevel, values.level);
+                if (values.level >= 0.0) {
+                    serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxideLevel, values.level);
+                }
                 serviceCOPingValue.updateCharacteristic(_hap.Characteristic.StatusFault, faultCode);
+                serviceCOPingValue.updateCharacteristic(_hap.Characteristic.StatusLowBattery, batteryStatus);
                 // Set the Peak Values if necessary,
                 if (!values.resetPeak) {
                     // Get the current peak.
@@ -726,11 +737,6 @@ class NetworkPerformanceMonitorPlatform {
                     const target = this._networkPerformanceTargets.get(id);
                     if (target !== undefined) {
                         if (value) {
-                            // Reinitialize the accessory data (including the peak)
-                            this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PING_TIME,   {level:0.0, fault:false, resetPeak:true});
-                            this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PING_STDEV,  {level:0.0, fault:false, resetPeak:true});
-                            this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PACKET_LOSS, {level:0.0, fault:false, resetPeak:true});
-
                             // Turn the Ping Power On !!
                             target.Start();
                         }
