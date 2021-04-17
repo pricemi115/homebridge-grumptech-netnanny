@@ -324,9 +324,9 @@ class NetworkPerformanceMonitorPlatform {
                 const lossFault     = ((results.packet_loss > results.sender.TolerableLoss) ? true : false);
 
                 // Update the values.
-                this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PING_TIME,   {level:results.ping_time_ms, fault:timeFault,  resetPeak:false});
-                this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PING_STDEV,  {level:results.ping_stdev,   fault:stdevFault, resetPeak:false});
-                this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PACKET_LOSS, {level:results.packet_loss,  fault:lossFault,  resetPeak:false});
+                this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),   {level:results.ping_time_ms, fault:timeFault,  resetPeak:false, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),  {level:results.ping_stdev,   fault:stdevFault, resetPeak:false, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS), {level:results.packet_loss,  fault:lossFault,  resetPeak:false, active:true});
             }
         }
         else {
@@ -414,10 +414,10 @@ class NetworkPerformanceMonitorPlatform {
         accessory.context.SETTINGS = {SwitchState:true};
 
         // Create our services.
-        accessory.addService(_hap.Service.Switch,               SERVICE_NAME_PING_POWER,    UDST_PING_POWER);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_NAME_PING_TIME,     UDST_PING_TIME);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_NAME_PING_STDEV,    UDST_PING_STDDEV);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_NAME_PACKET_LOSS,   UDST_PACKET_LOSS);
+        accessory.addService(_hap.Service.Switch,               this._getServiceName(accessory, SERVICE_NAME_PING_POWER),    UDST_PING_POWER);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),     UDST_PING_TIME);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),    UDST_PING_STDDEV);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS),   UDST_PACKET_LOSS);
 
         try {
             // Configure the accessory
@@ -481,9 +481,9 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Initialize the Carbon Dioxide Sensors
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PING_TIME,   {level:0.0, fault:false, resetPeak:true});
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PING_STDEV,  {level:0.0, fault:false, resetPeak:true});
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_NAME_PACKET_LOSS, {level:0.0, fault:false, resetPeak:true});
+        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),   {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),  {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS), {level:0.0, fault:false, resetPeak:true, active:switchState});
 
         // Update the accessory information
         this._updateAccessoryInfo(accessory, {model:"GrumpTech Network Performance", serialnum:id});
@@ -736,6 +736,12 @@ class NetworkPerformanceMonitorPlatform {
                 if (this._networkPerformanceTargets.has(id)) {
                     const target = this._networkPerformanceTargets.get(id);
                     if (target !== undefined) {
+                        // Update/reinitialize the accessory data (including the peak, as needed)
+                        const theLevel = (value ? 0.0 : -1.0);
+                        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),   {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),  {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS), {level:theLevel, fault:false, resetPeak:value, active:value});
+
                         if (value) {
                             // Turn the Ping Power On !!
                             target.Start();
@@ -770,7 +776,7 @@ class NetworkPerformanceMonitorPlatform {
 
     @return - the value of the On characteristic (true or false)
 
-    @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory..
+    @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory.
     @throws {Error}     - Thrown when the switch service or On characteristic cannot
                           be found on the accessory.
     ======================================================================== */
@@ -796,5 +802,31 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         return result;
+    }
+
+ /* ========================================================================
+    Description: Helper to get the name of a service.
+                (Used to distinguish multiple services from one another.)
+
+    @param {object} [accessory] - accessory being querried.
+    @param {string} [baseName]  - base name of the serice.
+
+    @return - the augmented name of the service.
+
+    @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory.
+    @throws {TypeError} - Thrown when 'baseName' is not a non-zero length string.
+    ======================================================================== */
+    _getServiceName(accessory, baseName) {
+        // Validate arguments
+        if ((accessory === undefined) || !(accessory instanceof _PlatformAccessory)) {
+            throw new TypeError(`Accessory must be a PlatformAccessory`);
+        }
+        if ((baseName === undefined) ||
+            (typeof(baseName) !== 'string') || (baseName.length <= 0)) {
+                throw new TypeError(`baseName must be a non-zero length string.`);
+        }
+
+        const serviceName = `${baseName}-(${accessory.displayName})`;
+        return serviceName;
     }
 }
