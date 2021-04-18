@@ -48,23 +48,21 @@ import {
 */
 
 // Internal dependencies
-import { NetworkTarget as _NetworkTarget } from './networkTarget.js';
+import { NetworkTarget as _NetworkTarget, PEAK_TYPES as _TARGET_PEAK_TYPES } from './networkTarget.js';
 
 // Configuration constants.
 const PLUGIN_NAME   = CONFIG_INFO.plugin;
 const PLATFORM_NAME = CONFIG_INFO.platform;
 
 // Internal Constants
-const ACCESSORY_VERSION             = 1;
-const UDST_PING_TIME                = 'PingTime';
-const SERVICE_NAME_PING_TIME        = 'Time';
-const UDST_PING_STDDEV              = 'PingStDev';
-const SERVICE_NAME_PING_STDEV       = 'Standard Deviation';
-const UDST_PACKET_LOSS              = 'PacketLoss';
-const SERVICE_NAME_PACKET_LOSS      = 'Packet Loss';
-const UDST_PING_POWER               = 'PingControl';
-const SERVICE_NAME_PING_POWER       = 'Ping Control';
+const ACCESSORY_VERSION = 1;
 
+const SERVICE_INFO = {
+    POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
+    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME},
+    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS}
+}
 
 // Accessory must be created from PlatformAccessory Constructor
 let _PlatformAccessory  = undefined;
@@ -188,15 +186,19 @@ class NetworkPerformanceMonitorPlatform {
                         }
                         /* Get the nominal ping time */
                         if ((itemConfig.hasOwnProperty('expected_nominal')) && (typeof(itemConfig.expected_nominal) === 'number')) {
-                            commonTargetConfig.expected_nominal = itemConfig.expected_nominal;
+                            targetConfig.expected_nominal = itemConfig.expected_nominal;
                         }
                         /* Get the nominal ping stamdard deviation */
                         if ((itemConfig.hasOwnProperty('expected_stdev')) && (typeof(itemConfig.expected_stdev) === 'number')) {
-                            commonTargetConfig.expected_stdev = itemConfig.expected_stdev;
+                            targetConfig.expected_stdev = itemConfig.expected_stdev;
                         }
                         /* Get the packet loss limit */
                         if ((itemConfig.hasOwnProperty('loss_limit')) && (typeof(itemConfig.loss_limit) === 'number')) {
-                            commonTargetConfig.loss_limit = itemConfig.loss_limit;
+                            targetConfig.loss_limit = itemConfig.loss_limit;
+                        }
+                        /* Get the peak reset time (hr) */
+                        if ((itemConfig.hasOwnProperty('peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
+                            targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
 
                         /* Create the network target. */
@@ -324,9 +326,9 @@ class NetworkPerformanceMonitorPlatform {
                 const lossFault     = ((results.packet_loss > results.sender.TolerableLoss) ? true : false);
 
                 // Update the values.
-                this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),   {level:results.ping_time_ms, fault:timeFault,  resetPeak:false, active:true});
-                this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),  {level:results.ping_stdev,   fault:stdevFault, resetPeak:false, active:true});
-                this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS), {level:results.packet_loss,  fault:lossFault,  resetPeak:false, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:results.ping_time_ms, fault:timeFault,  resetPeak:false, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:results.ping_stdev,   fault:stdevFault, resetPeak:false, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,  fault:lossFault,  resetPeak:false, active:true});
             }
         }
         else {
@@ -414,10 +416,10 @@ class NetworkPerformanceMonitorPlatform {
         accessory.context.SETTINGS = {SwitchState:true};
 
         // Create our services.
-        accessory.addService(_hap.Service.Switch,               this._getServiceName(accessory, SERVICE_NAME_PING_POWER),    UDST_PING_POWER);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),     UDST_PING_TIME);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),    UDST_PING_STDDEV);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS),   UDST_PACKET_LOSS);
+        accessory.addService(_hap.Service.Switch,               SERVICE_INFO.POWER.uuid,   SERVICE_INFO.POWER.udst);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.TIME.uuid,    SERVICE_INFO.TIME.udst);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.STDDEV.uuid,  SERVICE_INFO.STDDEV.udst);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.LOSS.uuid,    SERVICE_INFO.LOSS.udst);
 
         try {
             // Configure the accessory
@@ -480,10 +482,19 @@ class NetworkPerformanceMonitorPlatform {
             charOn.on('set', this._handleOnSet.bind(this, id));
         }
 
+        // Update the names of each service.
+        const infoItems = [SERVICE_INFO.TIME, SERVICE_INFO.STDDEV, SERVICE_INFO.LOSS];
+        for (const name_info of infoItems) {
+            const service = accessory.getServiceById(name_info.uuid, name_info.udst);
+            if (service !== undefined) {
+                service.updateCharacteristic(_hap.Characteristic.Name, `${name_info.name}-(${accessory.displayName})`);
+            }
+        }
+
         // Initialize the Carbon Dioxide Sensors
-        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),   {level:0.0, fault:false, resetPeak:true, active:switchState});
-        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),  {level:0.0, fault:false, resetPeak:true, active:switchState});
-        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS), {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.TIME,   {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.STDDEV, {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LOSS,   {level:0.0, fault:false, resetPeak:true, active:switchState});
 
         // Update the accessory information
         this._updateAccessoryInfo(accessory, {model:"GrumpTech Network Performance", serialnum:id});
@@ -500,30 +511,37 @@ class NetworkPerformanceMonitorPlatform {
     Description: Internal function to perform accessory configuration for Carbon Dioxide Sensor services.
 
     @param {PlatformAccessory} [accessory]          - Accessory to be configured.
-    @param {string}            [serviceName]        - Name of the service to be configured.
+    @param {object}            [serviceInfo]        - Name information of the service to be configured.
+    @param {string}            [serviceInfo.uuid]   - UUID of the service
+    @param {string}            [serviceInfo.name]   - Name of the service.
+    @param {string}            [serviceInfo.udst]   - User Defined Sub-Type of the service.
+    @param {string}            [serviceInfo.peak]   - Name of the 'peak'. Used to reset the target when the peak is updated.
     @paran {object}            [values]             - Object containing the values being set.
     @param {number  | Error}   [values.level]       - Value to be reported as the CO Level
     @param {boolean | Error}   [values.fault]       - true if a fault exists.
     @param {boolean | Error}   [values.resetPeak]   - true if the peak level should be reset.
 
     @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
-    @throws {TypeError} - thrown if 'serviceName' is not a string or has zero length.
+    @throws {TypeError} - thrown if 'serviceName' does not conform to a SERVCICE_NAMES item.
     @throws {TypeError} - thrown if 'values' is not an object or does not contain the expected fields.
     @throws {Error}     - thrown if the service for the serviceName is not a Carbon Dioxide Sensor.
 
     @remarks:     Opportunity to setup event handlers for characteristics and update values (as needed).
     ======================================================================== */
-    _updateCarbonDioxideSensorService(accessory, serviceName, values) {
+    _updateCarbonDioxideSensorService(accessory, serviceInfo, values) {
 
         if ((accessory === undefined) ||
             (!(accessory instanceof _PlatformAccessory))) {
             throw new TypeError(`accessory must be a PlatformAccessory`);
         }
-        if ((serviceName === undefined) ||
-            (typeof(serviceName) != 'string') ||
-            (serviceName.length <= 0))
+        if ((serviceInfo === undefined) ||
+            (typeof(serviceInfo) != 'object') ||
+            (!serviceInfo.hasOwnProperty('uuid') || (typeof(serviceInfo.uuid) !== 'string') || (serviceInfo.uuid.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('name') || (typeof(serviceInfo.name) !== 'string') || (serviceInfo.name.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('udst') || (typeof(serviceInfo.udst) !== 'string') || (serviceInfo.udst.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('peak') || (typeof(serviceInfo.peak) !== 'string') || (serviceInfo.peak.length <= 0) )   )
         {
-            throw new TypeError(`serviceName must be a non-zero length string`);
+            throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
         if ((values === undefined) || (typeof(values) !== 'object') ||
             (!values.hasOwnProperty('level'))     || ((typeof(values.level) !== 'number')       || (values.level instanceof Error)) ||
@@ -534,9 +552,9 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Attempt to get the named service and validate that it is a Carbon Dioxie Sensor
-        const serviceCOPingValue = accessory.getService(serviceName);
-        if ((serviceCOPingValue !== undefined) &&
-            (serviceCOPingValue instanceof _hap.Service.CarbonDioxideSensor)) {
+        const serviceCO2Ping = accessory.getServiceById(serviceInfo.uuid, serviceInfo.udst);
+        if ((serviceCO2Ping !== undefined) &&
+            (serviceCO2Ping instanceof _hap.Service.CarbonDioxideSensor)) {
             try {
                 // Get the network performance target for this accessory
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
@@ -544,20 +562,20 @@ class NetworkPerformanceMonitorPlatform {
                 const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT : _hap.Characteristic.StatusFault.NO_FAULT);
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
-                serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 if (values.level >= 0.0) {
-                    serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxideLevel, values.level);
+                    serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideLevel, values.level);
                 }
-                serviceCOPingValue.updateCharacteristic(_hap.Characteristic.StatusFault, faultCode);
-                serviceCOPingValue.updateCharacteristic(_hap.Characteristic.StatusLowBattery, batteryStatus);
+                serviceCO2Ping.updateCharacteristic(_hap.Characteristic.StatusFault, faultCode);
+                serviceCO2Ping.updateCharacteristic(_hap.Characteristic.StatusLowBattery, batteryStatus);
                 // Set the Peak Values if necessary,
                 if (!values.resetPeak) {
                     // Get the current peak.
-                    const currentPeak = serviceCOPingValue.getCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel).value;
+                    const currentPeak = serviceCO2Ping.getCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel).value;
                     // Is there a new peak?
                     if (values.level > currentPeak) {
                         // Set the new peak
-                        serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, values.level);
+                        serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, values.level);
                         // Update the peak time reference.
                         if (target !== undefined) {
                             target.UpdatePeakTime(serviceInfo.peak);
@@ -566,7 +584,7 @@ class NetworkPerformanceMonitorPlatform {
                 }
                 else {
                     // Reset the peak
-                    serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, 0.0);
+                    serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, 0.0);
                     // Update the peak time reference.
                     if (target !== undefined) {
                         target.UpdatePeakTime(serviceInfo.peak);
@@ -579,7 +597,7 @@ class NetworkPerformanceMonitorPlatform {
             }
         }
         else {
-            throw new Error(`Accessory ${accessory.displayName} does not have a valid ${serviceName} service`);
+            throw new Error(`Accessory ${accessory.displayName} does not have a valid ${serviceInfo} service`);
         }
     }
 
@@ -748,9 +766,9 @@ class NetworkPerformanceMonitorPlatform {
                     if (target !== undefined) {
                         // Update/reinitialize the accessory data (including the peak, as needed)
                         const theLevel = (value ? 0.0 : -1.0);
-                        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_TIME),   {level:theLevel, fault:false, resetPeak:value, active:value});
-                        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PING_STDEV),  {level:theLevel, fault:false, resetPeak:value, active:value});
-                        this._updateCarbonDioxideSensorService(accessory,  this._getServiceName(accessory, SERVICE_NAME_PACKET_LOSS), {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:theLevel, fault:false, resetPeak:value, active:value});
 
                         if (value) {
                             // Turn the Ping Power On !!
@@ -812,31 +830,5 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         return result;
-    }
-
- /* ========================================================================
-    Description: Helper to get the name of a service.
-                (Used to distinguish multiple services from one another.)
-
-    @param {object} [accessory] - accessory being querried.
-    @param {string} [baseName]  - base name of the serice.
-
-    @return - the augmented name of the service.
-
-    @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory.
-    @throws {TypeError} - Thrown when 'baseName' is not a non-zero length string.
-    ======================================================================== */
-    _getServiceName(accessory, baseName) {
-        // Validate arguments
-        if ((accessory === undefined) || !(accessory instanceof _PlatformAccessory)) {
-            throw new TypeError(`Accessory must be a PlatformAccessory`);
-        }
-        if ((baseName === undefined) ||
-            (typeof(baseName) !== 'string') || (baseName.length <= 0)) {
-                throw new TypeError(`baseName must be a non-zero length string.`);
-        }
-
-        const serviceName = `${baseName}-(${accessory.displayName})`;
-        return serviceName;
     }
 }
