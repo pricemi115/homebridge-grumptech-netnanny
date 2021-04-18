@@ -1617,10 +1617,15 @@ class NetworkPerformanceMonitorPlatform {
                 const stdevFault    = (results.error || (results.ping_stdev > varianceLimit));
                 const lossFault     = ((results.packet_loss > results.sender.TolerableLoss) ? true : false);
 
+                // Determine if the peaks have expired.
+                const resetPeakTime     = results.sender.IsPeakExpired(SERVICE_INFO.TIME.peak);
+                const resetPeakStdDev   = results.sender.IsPeakExpired(SERVICE_INFO.STDDEV.peak);
+                const resetPeakLoss     = results.sender.IsPeakExpired(SERVICE_INFO.LOSS.peak);
+
                 // Update the values.
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:results.ping_time_ms, fault:timeFault,  resetPeak:false, active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:results.ping_stdev,   fault:stdevFault, resetPeak:false, active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,  fault:lossFault,  resetPeak:false, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:results.ping_time_ms, fault:timeFault,  resetPeak:resetPeakTime,     active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:results.ping_stdev,   fault:stdevFault, resetPeak:resetPeakStdDev,   active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,  fault:lossFault,  resetPeak:resetPeakLoss,     active:true});
             }
         }
         else {
@@ -1779,7 +1784,6 @@ class NetworkPerformanceMonitorPlatform {
         for (const name_info of infoItems) {
             const service = accessory.getServiceById(name_info.uuid, name_info.udst);
             if (service !== undefined) {
-                console.log(`Setting Service Name to ${name_info.name}`);
                 service.updateCharacteristic(_hap.Characteristic.Name, `${name_info.name}-(${accessory.displayName})`);
             }
         }
@@ -1861,29 +1865,18 @@ class NetworkPerformanceMonitorPlatform {
                 }
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.StatusFault, faultCode);
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.StatusLowBattery, batteryStatus);
+
+                // Get the current peak.
+                const currentPeak = serviceCO2Ping.getCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel).value;
                 // Set the Peak Values if necessary,
-                if (!values.resetPeak) {
-                    // Get the current peak.
-                    const currentPeak = serviceCO2Ping.getCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel).value;
-                    // Is there a new peak?
-                    if (values.level > currentPeak) {
-                        // Set the new peak
-                        serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, values.level);
-                        // Update the peak time reference.
-                        if (target !== undefined) {
-                            target.UpdatePeakTime(serviceInfo.peak);
-                        }
-                    }
-                }
-                else {
-                    // Reset the peak
-                    serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, 0.0);
+                if ((values.resetPeak) ||
+                    (values.level > currentPeak)) {
+                    serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, values.level);
                     // Update the peak time reference.
                     if (target !== undefined) {
                         target.UpdatePeakTime(serviceInfo.peak);
                     }
                 }
-
             }
             catch (err) {
                 this._log.debug(`Error setting characteristics for ${accessory.displayName}. Error: ${err}`);
