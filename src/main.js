@@ -538,6 +538,8 @@ class NetworkPerformanceMonitorPlatform {
         if ((serviceCOPingValue !== undefined) &&
             (serviceCOPingValue instanceof _hap.Service.CarbonDioxideSensor)) {
             try {
+                // Get the network performance target for this accessory
+                const target = this._networkPerformanceTargets.get(accessory.context.ID);
                 // Determine the fault code.
                 const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT : _hap.Characteristic.StatusFault.NO_FAULT);
                 // Determine the low battery status based on being active or not.
@@ -556,11 +558,19 @@ class NetworkPerformanceMonitorPlatform {
                     if (values.level > currentPeak) {
                         // Set the new peak
                         serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, values.level);
+                        // Update the peak time reference.
+                        if (target !== undefined) {
+                            target.UpdatePeakTime(serviceInfo.peak);
+                        }
                     }
                 }
                 else {
                     // Reset the peak
                     serviceCOPingValue.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, 0.0);
+                    // Update the peak time reference.
+                    if (target !== undefined) {
+                        target.UpdatePeakTime(serviceInfo.peak);
+                    }
                 }
 
             }

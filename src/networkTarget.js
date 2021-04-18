@@ -19,27 +19,35 @@ import { SpawnHelper } from './spawnHelper.js';
 _debug.log = console.log.bind(console);
 
 // Helpful constants and conversion factors.
-const DEFAULT_PERIOD_SEC    = 10.0;
-const DEFAULT_PING_COUNT    = 5;
-const MIN_PING_COUNT        = 3; // Need at least 3 to compute a standard deviation
-const DEFAULT_PING_INTERVAL = 1;
-const MIN_PING_INTERVAL     = 1;
-const MIN_PERIOD_SEC        = (2.0*MIN_PING_INTERVAL*MIN_PING_COUNT);
-const MIN_PACKET_SIZE       = 56;
-const DEFAULT_PACKET_SIZE   = MIN_PACKET_SIZE;
-const CONVERT_SEC_TO_MS     = 1000.0;
-const INVALID_TIMEOUT_ID    = -1;
-const MIN_LOSS_LIMIT        = 0.0;
-const MAX_LOSS_LIMIT        = 100.0;
+const DEFAULT_PERIOD_SEC            = 10.0;
+const DEFAULT_PING_COUNT            = 5;
+const MIN_PING_COUNT                = 3; // Need at least 3 to compute a standard deviation
+const DEFAULT_PING_INTERVAL         = 1;
+const MIN_PING_INTERVAL             = 1;
+const MIN_PERIOD_SEC                = (2.0*MIN_PING_INTERVAL*MIN_PING_COUNT);
+const MIN_PACKET_SIZE               = 56;
+const DEFAULT_PACKET_SIZE           = MIN_PACKET_SIZE;
+const CONVERT_SEC_TO_MS             = 1000.0;
+const INVALID_TIMEOUT_ID            = -1;
+const MIN_LOSS_LIMIT                = 0.0;
+const MAX_LOSS_LIMIT                = 100.0;
+const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
 
-/* Enumeration for hashing algorithms */
+/* Enumeration for target types */
 export const TARGET_TYPES = {
     URI         : 'uri',
     IPV4        : 'ipv4',
     IPV6        : 'ipv6',
     GATEWAY     : 'gateway',
     CABLE_MODEM : 'cable_modem'
-  };
+};
+
+/* Enumeration for peak types */
+export const PEAK_TYPES = {
+    TIME       : 'peak_time',
+    STDEV      : 'peak_stddev',
+    LOSS       : 'peak_packet_loss'
+};
 
 /* ==========================================================================
    Class:              NetworkTarget
@@ -87,6 +95,7 @@ export class NetworkTarget extends EventEmitter {
         let expectedStDev   = 0.005;
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = 0.0;
+        let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
         // Check for expected types
         if (config !== undefined) {
             if (                                            (typeof(config) !== 'object')                   ||
@@ -97,6 +106,7 @@ export class NetworkTarget extends EventEmitter {
                 ((config.ping_period !== undefined)      && (typeof(config.ping_period) !== 'number'))      ||
                 ((config.ping_interval !== undefined)    && (typeof(config.ping_count) !== 'number'))       ||
                 ((config.ping_count !== undefined)       && (typeof(config.ping_count) !== 'number'))       ||
+                ((config.peak_expiration !== undefined)  && (typeof(config.peak_expiration) !== 'number'))  ||
                 ((config.expected_nominal !== undefined) && (typeof(config.expected_nominal) !== 'number')) ||
                 ((config.expected_stdev !== undefined)   && (typeof(config.expected_stdev) !== 'number'))     ) {
 
@@ -167,7 +177,16 @@ export class NetworkTarget extends EventEmitter {
                     pingCount = config.ping_count;
                 }
                 else {
-                    throw new RangeError(`Ping count is indefined or is less than the minimum. ${config.ping_count}`);
+                    throw new RangeError(`Ping count is undefined or is less than the minimum. ${config.ping_count}`);
+                }
+            }
+            if (config.peak_expiration) {
+                if (config.peak_expiration >= 0) {
+                    // Convert the expiration time provided from hours to milliseconds.
+                    peakExpirationTime = config.peak_expiration * (3600/* sec/hr */*1000/* milliseconds/sec */);
+                }
+                else {
+                    throw new RangeError(`Ping expiration time is undefined or is less than the minimum. ${config.peak_expiration}`);
                 }
             }
             if (config.expected_nominal) {
@@ -199,10 +218,18 @@ export class NetworkTarget extends EventEmitter {
         this._ping_packet_size  = packetSize;
         this._ping_interval     = pingInterval;
         this._ping_period       = pingPeriod;
+        this._peak_expiration   = peakExpirationTime;
         this._expected_nominal  = expectedNominal;
         this._expected_stdev    = expectedStDev;
         this._timeoutID         = INVALID_TIMEOUT_ID;
         this._pingInProgress    = false;
+
+        // Create a map of Date objects for trasking when the peaks
+        // were last set.
+        const now = Date.now();
+        this._peakTime = new Map([[PEAK_TYPES.TIME,  now],
+                                  [PEAK_TYPES.STDEV, now],
+                                  [PEAK_TYPES.LOSS,  now]]);
 
         // Callbacks bound to this object.
         this._CB__initiateCheck     = this._on_initiateCheck.bind(this);
@@ -311,6 +338,49 @@ export class NetworkTarget extends EventEmitter {
     ======================================================================== */
     get ExpectedStdDev() {
         return this._expected_stdev;
+    }
+
+/*  ========================================================================
+    Description: Determines if the specified peak has expired.
+
+    @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being querried
+
+    @return {boolean} - true if the peak has not been updated in more than
+                        the allowable time.
+
+    @throws {TypeError} - Thrown if 'peak_type' is not a PEAK_TYPES value.
+    ======================================================================== */
+    IsPeakExpired(peak_type) {
+        // Validate arguments
+        if ((peak_type === undefined) || (typeof(peak_type) !== 'string') ||
+            (Object.values(PEAK_TYPES).indexOf(peak_type) < 0)) {
+            throw new TypeError(`peak_type not a member of PEAK_TYPES. ${peak_type}`);
+        }
+
+        // Determine the elapsed time (in milliseconds)
+        const delta = Date.now() - this._peakTime.get(peak_type);
+        // Has the specified peak expired?
+        const expired = (delta > this._peak_expiration);
+
+        return expired;
+    }
+
+/*  ========================================================================
+    Description: Update the time that the specified peak was updated.
+
+    @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being querried.
+
+    @throws {TypeError} - Thrown if 'peak_type' is not a PEAK_TYPES value.
+    ======================================================================== */
+    UpdatePeakTime(peak_type) {
+        // Validate arguments
+        if ((peak_type === undefined) || (typeof(peak_type) !== 'string') ||
+            (Object.values(PEAK_TYPES).indexOf(peak_type) < 0)) {
+            throw new TypeError(`peak_type not a member of PEAK_TYPES. ${peak_type}`);
+        }
+
+        // Update the reference time for the specified peak.
+        this._peakTime.set(peak_type, Date.now());
     }
 
 /*  ========================================================================

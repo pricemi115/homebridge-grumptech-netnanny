@@ -91,6 +91,13 @@
                                     "type": "number",
                                     "default": 1,
                                     "required": false
+                                },
+                                "peak_expiration": {
+                                    "title": "Peak Expiratioin Time",
+                                    "description": "The time, in hours, used to reset the peak values.",
+                                    "type": "number",
+                                    "default": 12,
+                                    "required": false
                                 }
                             }
                         },
