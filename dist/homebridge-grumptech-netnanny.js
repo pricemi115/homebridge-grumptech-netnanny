@@ -1612,9 +1612,9 @@ class NetworkPerformanceMonitorPlatform {
             const accessory = this._accessories.get(id);
             if (accessory !== undefined) {
                 // Compute the fault statuses
-                const varianceLimit = (3.0*results.sender.ExpectedStdDev);
-                const timeFault     = (results.error || (results.ping_time_ms > (results.sender.ExpectedNominal + varianceLimit)));
-                const stdevFault    = (results.error || (results.ping_stdev > varianceLimit));
+                const threshold     = (3.0*results.sender.ExpectedStdDev);
+                const timeFault     = (results.error || (results.ping_time_ms > (results.sender.ExpectedNominal + threshold)));
+                const stdevFault    = (results.error || (results.ping_stdev > threshold));
                 const lossFault     = ((results.packet_loss > results.sender.TolerableLoss) ? true : false);
 
                 // Determine if the peaks have expired.
@@ -1855,11 +1855,12 @@ class NetworkPerformanceMonitorPlatform {
             try {
                 // Get the network performance target for this accessory
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
-                // Determine the fault code.
+                // Determine the fault code and CO2 Level
                 const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT : _hap.Characteristic.StatusFault.NO_FAULT);
+                const co2Level  = (values.fault ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
-                serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, co2Level);
                 if (values.level >= 0.0) {
                     serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideLevel, values.level);
                 }
