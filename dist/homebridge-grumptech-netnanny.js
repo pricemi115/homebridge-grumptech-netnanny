@@ -812,6 +812,7 @@ const INVALID_TIMEOUT_ID            = -1;
 const MIN_LOSS_LIMIT                = 0.0;
 const MAX_LOSS_LIMIT                = 100.0;
 const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
+const DEFAULT_ALERT_THRESHOLD       = 3;
 
 /* Enumeration for target types */
 const TARGET_TYPES = {
@@ -827,6 +828,13 @@ const PEAK_TYPES = {
     TIME       : 'peak_time',
     STDEV      : 'peak_stddev',
     LOSS       : 'peak_packet_loss'
+};
+
+/* Enumeration for alarm threshold types */
+const ALERT_TYPES = {
+    TIME       : 'alert_time',
+    STDEV      : 'alert_stddev',
+    LOSS       : 'alert_packet_loss'
 };
 
 /* ==========================================================================
@@ -854,6 +862,8 @@ class NetworkTarget extends EventEmitter {
     @param {number} [config.loss_lmit]        - *Optional* The percentage of lost packets that is tolerable.
     @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
     @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
+    @param {number} [config.alert_threshold]  - *Optional* The number of consecutive alerts/faults to tolerate.
+    @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
     @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping time.
     @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
 
@@ -876,6 +886,7 @@ class NetworkTarget extends EventEmitter {
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = 0.0;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
+        let alertThreshold  = DEFAULT_ALERT_THRESHOLD;
         // Check for expected types
         if (config !== undefined) {
             if (                                            (typeof(config) !== 'object')                   ||
@@ -886,6 +897,7 @@ class NetworkTarget extends EventEmitter {
                 ((config.ping_period !== undefined)      && (typeof(config.ping_period) !== 'number'))      ||
                 ((config.ping_interval !== undefined)    && (typeof(config.ping_count) !== 'number'))       ||
                 ((config.ping_count !== undefined)       && (typeof(config.ping_count) !== 'number'))       ||
+                ((config.alert_threshold !== undefined)  && (typeof(config.alert_threshold) !== 'number'))  ||
                 ((config.peak_expiration !== undefined)  && (typeof(config.peak_expiration) !== 'number'))  ||
                 ((config.expected_nominal !== undefined) && (typeof(config.expected_nominal) !== 'number')) ||
                 ((config.expected_stdev !== undefined)   && (typeof(config.expected_stdev) !== 'number'))     ) {
@@ -969,6 +981,14 @@ class NetworkTarget extends EventEmitter {
                     throw new RangeError(`Ping expiration time is undefined or is less than the minimum. ${config.peak_expiration}`);
                 }
             }
+            if (config.alert_threshold) {
+                if (config.alert_threshold >= 0) {
+                    alertThreshold = config.alert_threshold;
+                }
+                else {
+                    throw new RangeError(`Alert Threshold is undefined or is less than the minimum. ${config.alert_threshold}`);
+                }
+            }
             if (config.expected_nominal) {
                 if (config.expected_nominal > 0) {
                     expectedNominal = config.expected_nominal;
@@ -999,17 +1019,23 @@ class NetworkTarget extends EventEmitter {
         this._ping_interval     = pingInterval;
         this._ping_period       = pingPeriod;
         this._peak_expiration   = peakExpirationTime;
+        this._alert_threshold   = alertThreshold;
         this._expected_nominal  = expectedNominal;
         this._expected_stdev    = expectedStDev;
         this._timeoutID         = INVALID_TIMEOUT_ID;
         this._pingInProgress    = false;
 
-        // Create a map of Date objects for trasking when the peaks
+        // Create a map of Date objects for tracking when the peaks
         // were last set.
         const now = Date.now();
         this._peakTime = new Map([[PEAK_TYPES.TIME,  now],
                                   [PEAK_TYPES.STDEV, now],
                                   [PEAK_TYPES.LOSS,  now]]);
+            // Create a map of counters for tracking the number of consecutive failures.
+            // Used to know when to set an CO2 Detected alarm.
+        this._alertCount = new Map([[ALERT_TYPES.TIME,  0],
+                                    [ALERT_TYPES.STDEV, 0],
+                                    [ALERT_TYPES.LOSS,  0]]);
 
         // Callbacks bound to this object.
         this._CB__initiateCheck     = this._on_initiateCheck.bind(this);
@@ -1148,7 +1174,7 @@ class NetworkTarget extends EventEmitter {
 /*  ========================================================================
     Description: Update the time that the specified peak was updated.
 
-    @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being querried.
+    @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being updated.
 
     @throws {TypeError} - Thrown if 'peak_type' is not a PEAK_TYPES value.
     ======================================================================== */
@@ -1161,6 +1187,61 @@ class NetworkTarget extends EventEmitter {
 
         // Update the reference time for the specified peak.
         this._peakTime.set(peak_type, Date.now());
+    }
+
+/*  ========================================================================
+    Description: Determines if the specified alert threshold has been exceeded.
+
+    @param {enum:ALERT_TYPES} [alert_type] - Type of the alert threshold being querried
+
+    @return {boolean} - true if the alert threshold has been exceeded.
+
+    @throws {TypeError} - Thrown if 'alert_type' is not a ALERT_TYPES value.
+    ======================================================================== */
+    IsAlertThresholdExceeded(alert_type) {
+        // Validate arguments
+        if ((alert_type === undefined) || (typeof(alert_type) !== 'string') ||
+            (Object.values(ALERT_TYPES).indexOf(alert_type) < 0)) {
+            throw new TypeError(`alert_type not a member of ALERT_TYPES. ${alert_type}`);
+        }
+
+        // Has the specified alert exceeded its threshold?
+        const expired = (this._alertCount.get(alert_type) > this._alert_threshold);
+
+        return expired;
+    }
+
+/*  ========================================================================
+    Description: Update the count of alerts.
+
+    @param {enum:ALERT_TYPES} [alert_type] - Type of the alarm being managed.
+    @param {boolean}          [alert_reset]- Flag indicating if the alarm count should be reset.
+
+    @return {boolean}   - Flag indicating if the update resulted in the alarm exceeding the threshold.
+
+    @throws {TypeError} - Thrown if 'alert_type' is not a ALERT_TYPES value.
+    @throws {TypeError} - Thrown if 'alert_reset' is not a boolean value.
+    ======================================================================== */
+    UpdateAlert(alert_type, alert_reset) {
+        // Validate arguments
+        if ((alert_type === undefined) || (typeof(alert_type) !== 'string') ||
+            (Object.values(ALERT_TYPES).indexOf(alert_type) < 0)) {
+            throw new TypeError(`alarm_type not a member of ALERT_TYPES. ${alert_type}`);
+        }
+        if ((alert_reset === undefined) || (typeof(alert_reset) !== 'boolean')) {
+            throw new TypeError(`alarm_reset not a boolean. ${alert_reset}`);
+        }
+
+        // Fetermine the new value of the alarm count.
+        const alertCount = (alert_reset ? 0 : (this._alertCount.get(alert_type) + 1));
+
+        // Update the count.
+        this._alertCount.set(alert_type, alertCount);
+
+        // Determine if the alarm has now exceeded the threshold.
+        const exceeded = this.IsAlertThresholdExceeded(alert_type);
+
+        return exceeded;
     }
 
 /*  ========================================================================
@@ -1355,9 +1436,9 @@ const ACCESSORY_VERSION = 1;
 
 const SERVICE_INFO = {
     POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
-    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:PEAK_TYPES.TIME},
-    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:PEAK_TYPES.STDEV},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:PEAK_TYPES.LOSS}
+    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:PEAK_TYPES.TIME,  alert:ALERT_TYPES.TIME},
+    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:PEAK_TYPES.STDEV, alert:ALERT_TYPES.STDEV},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:PEAK_TYPES.LOSS,  alert:ALERT_TYPES.LOSS}
 };
 
 // Accessory must be created from PlatformAccessory Constructor
@@ -1496,6 +1577,10 @@ class NetworkPerformanceMonitorPlatform {
                         if ((itemConfig.hasOwnProperty('peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
                             targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
+                        /* Get the alert threshold */
+                        if ((itemConfig.hasOwnProperty('alert_threshold')) && (typeof(itemConfig.alert_threshold) === 'number')) {
+                            targetConfig.alert_threshold = itemConfig.alert_threshold;
+                        }
 
                         /* Create the network target. */
                         const networkTarget = new NetworkTarget(targetConfig);
@@ -1602,7 +1687,7 @@ class NetworkPerformanceMonitorPlatform {
             throw new TypeError(`Ping 'ready' results are invalid: ${errText}`);
         }
 
-        _debug(`Ping results: Target:${results.sender.TargetDestination} Error:${results.error} Loss:${results.packet_loss} Time:${results.ping_time_ms} StDev:${results.ping_stdev}`);
+        this._log.debug(`Ping results: Target:${results.sender.TargetDestination} Error:${results.error} Loss:${results.packet_loss} Time:${results.ping_time_ms} StDev:${results.ping_stdev}`);
 
         // Update the accessory with the data provided.
         // Get the id for the accessory
@@ -1629,7 +1714,7 @@ class NetworkPerformanceMonitorPlatform {
             }
         }
         else {
-            console.log(`No accessory for sender ID: ${id}`);
+            this._log.debug(`No accessory for sender ID: ${id}`);
             throw new Error(`No accessory for sender ID: ${id}`);
         }
     }
@@ -1812,14 +1897,15 @@ class NetworkPerformanceMonitorPlatform {
     @param {string}            [serviceInfo.uuid]   - UUID of the service
     @param {string}            [serviceInfo.name]   - Name of the service.
     @param {string}            [serviceInfo.udst]   - User Defined Sub-Type of the service.
-    @param {string}            [serviceInfo.peak]   - Name of the 'peak'. Used to reset the target when the peak is updated.
+    @param {string}            [serviceInfo.peak]   - Name of the 'peak'. Used to update the target when the peak is updated.
+    @param {string}            [serviceInfo.alert]  - Name of the 'alert'. Used to update the target when a fault is set or cleared.
     @paran {object}            [values]             - Object containing the values being set.
     @param {number  | Error}   [values.level]       - Value to be reported as the CO Level
     @param {boolean | Error}   [values.fault]       - true if a fault exists.
     @param {boolean | Error}   [values.resetPeak]   - true if the peak level should be reset.
 
     @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
-    @throws {TypeError} - thrown if 'serviceName' does not conform to a SERVCICE_NAMES item.
+    @throws {TypeError} - thrown if 'serviceInfo' does not conform to a serviceInfo item.
     @throws {TypeError} - thrown if 'values' is not an object or does not contain the expected fields.
     @throws {Error}     - thrown if the service for the serviceName is not a Carbon Dioxide Sensor.
 
@@ -1833,10 +1919,11 @@ class NetworkPerformanceMonitorPlatform {
         }
         if ((serviceInfo === undefined) ||
             (typeof(serviceInfo) != 'object') ||
-            (!serviceInfo.hasOwnProperty('uuid') || (typeof(serviceInfo.uuid) !== 'string') || (serviceInfo.uuid.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('name') || (typeof(serviceInfo.name) !== 'string') || (serviceInfo.name.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('udst') || (typeof(serviceInfo.udst) !== 'string') || (serviceInfo.udst.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('peak') || (typeof(serviceInfo.peak) !== 'string') || (serviceInfo.peak.length <= 0) )   )
+            (!serviceInfo.hasOwnProperty('uuid')  || (typeof(serviceInfo.uuid)  !== 'string') || (serviceInfo.uuid.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('name')  || (typeof(serviceInfo.name)  !== 'string') || (serviceInfo.name.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('udst')  || (typeof(serviceInfo.udst)  !== 'string') || (serviceInfo.udst.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('peak')  || (typeof(serviceInfo.peak)  !== 'string') || (serviceInfo.peak.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('alert') || (typeof(serviceInfo.alert) !== 'string') || (serviceInfo.alert.length <= 0) )   )
         {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
@@ -1855,9 +1942,13 @@ class NetworkPerformanceMonitorPlatform {
             try {
                 // Get the network performance target for this accessory
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
+
+                // Manage the alert count on the target.
+                const alertThresholdExceeded = target.UpdateAlert(serviceInfo.alert, (!values.fault));
+
                 // Determine the fault code and CO2 Level
-                const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT : _hap.Characteristic.StatusFault.NO_FAULT);
-                const co2Level  = (values.fault ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                const faultCode = (values.fault             ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
+                const co2Level  = (alertThresholdExceeded   ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, co2Level);
@@ -1884,6 +1975,7 @@ class NetworkPerformanceMonitorPlatform {
             }
         }
         else {
+            this._log.debug(`No service: Accessory ${accessory.displayName}`);
             throw new Error(`Accessory ${accessory.displayName} does not have a valid ${serviceInfo} service`);
         }
     }

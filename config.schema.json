@@ -98,6 +98,14 @@
                                     "type": "number",
                                     "default": 12,
                                     "required": false
+                                },
+                                "alert_threshold": {
+                                    "title": "Carbon Dioxide Alert Threshold",
+                                    "description": "The number of consecutive readings that exceed the limitations for the ping attribute being monitired (Time, Standard Deviation, and/or Packet Loss).",
+                                    "type": "number",
+                                    "default": 3,
+                                    "minimum": 1,
+                                    "required": false
                                 }
                             }
                         },
