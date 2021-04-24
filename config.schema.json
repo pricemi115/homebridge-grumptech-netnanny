@@ -73,7 +73,7 @@
                                     "title": "Packet Loss Limit",
                                     "description": "The limit, in percent, of lost packets that will be tolerated.",
                                     "type": "number",
-                                    "default": 0,
+                                    "default": 5,
                                     "minimum": 0,
                                     "maximum": 100,
                                     "required": false
@@ -99,11 +99,27 @@
                                     "default": 12,
                                     "required": false
                                 },
-                                "alert_threshold": {
-                                    "title": "Carbon Dioxide Alert Threshold",
-                                    "description": "The number of consecutive readings that exceed the limitations for the ping attribute being monitired (Time, Standard Deviation, and/or Packet Loss).",
+                                "data_buffer_size": {
+                                    "title": "Data buffer size",
+                                    "description": "The number of readings to be retained to compute a moving average.",
                                     "type": "number",
-                                    "default": 3,
+                                    "default": 10,
+                                    "minimum": 1,
+                                    "required": false
+                                },
+                                "data_buffer_filter": {
+                                    "title": "Filter factor of outlier values eliminated from the moving average calculation. Expressed as a percent of the data buffer size.",
+                                    "type": "number",
+                                    "default": 20,
+                                    "minimum": 0,
+                                    "maximum": 50,
+                                    "required": false
+                                },
+                                "alert_threshold": {
+                                    "title": "Carbon Dioxide Alert Factor",
+                                    "description": "Used to compute the number of consecutive updates that exceed the limitations for the ping attribute being monitired (Time, Standard Deviation, and/or Packet Loss). Expressed as a factor of the data buffer size.",
+                                    "type": "number",
+                                    "default": 2,
                                     "minimum": 1,
                                     "required": false
                                 }

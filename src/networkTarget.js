@@ -29,10 +29,16 @@ const MIN_PACKET_SIZE               = 56;
 const DEFAULT_PACKET_SIZE           = MIN_PACKET_SIZE;
 const CONVERT_SEC_TO_MS             = 1000.0;
 const INVALID_TIMEOUT_ID            = -1;
+const DEFAULT_PACKET_LOSS_LIMIT     = 5.0;
 const MIN_LOSS_LIMIT                = 0.0;
 const MAX_LOSS_LIMIT                = 100.0;
 const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
-const DEFAULT_ALERT_THRESHOLD       = 3;
+const DEFAULT_ALERT_FACTOR          = 2;
+const DEFAULT_BUFFER_SIZE           = 10;
+const MINIMUM_BUFFER_SIZE           = 1;
+const DEFAULT_BUFFER_FILTER         = 0.2;
+const MINIMUM_DATA_FILTER           = 0.0;
+const MAXIMUM_DATA_FILTER           = 0.5;
 
 /* Enumeration for target types */
 export const TARGET_TYPES = {
@@ -57,6 +63,12 @@ export const ALERT_TYPES = {
     LOSS       : 'alert_packet_loss'
 };
 
+/* Enumeration for data buffer types */
+const DATA_BUFFER_TYPES = {
+    TIME       : 'data_time',
+    STDEV      : 'data_stddev',
+    LOSS       : 'data_packet_loss'
+};
 /* ==========================================================================
    Class:              NetworkTarget
    Description:	       Monitors network performance via ping.
@@ -104,23 +116,27 @@ export class NetworkTarget extends EventEmitter {
         let expectedNominal = 0.05;
         let expectedStDev   = 0.005;
         let packetSize      = DEFAULT_PACKET_SIZE;
-        let lossLimit       = 0.0;
+        let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
-        let alertThreshold  = DEFAULT_ALERT_THRESHOLD;
+        let dataBufferSize  = DEFAULT_BUFFER_SIZE;
+        let dataBufferFilter= DEFAULT_BUFFER_FILTER;
+        let alertFactor     = DEFAULT_ALERT_FACTOR;
         // Check for expected types
         if (config !== undefined) {
-            if (                                            (typeof(config) !== 'object')                   ||
-                ((config.target_type !== undefined)      && (typeof(config.target_type) !== 'string'))      ||
-                ((config.target_dest !== undefined)      && (typeof(config.target_dest) !== 'string'))      ||
-                ((config.loss_limit !== undefined)       && (typeof(config.loss_limit) !== 'number'))       ||
-                ((config.packet_size !== undefined)      && (typeof(config.packet_size) !== 'number'))      ||
-                ((config.ping_period !== undefined)      && (typeof(config.ping_period) !== 'number'))      ||
-                ((config.ping_interval !== undefined)    && (typeof(config.ping_count) !== 'number'))       ||
-                ((config.ping_count !== undefined)       && (typeof(config.ping_count) !== 'number'))       ||
-                ((config.alert_threshold !== undefined)  && (typeof(config.alert_threshold) !== 'number'))  ||
-                ((config.peak_expiration !== undefined)  && (typeof(config.peak_expiration) !== 'number'))  ||
-                ((config.expected_nominal !== undefined) && (typeof(config.expected_nominal) !== 'number')) ||
-                ((config.expected_stdev !== undefined)   && (typeof(config.expected_stdev) !== 'number'))     ) {
+            if (                                            (typeof(config) !== 'object')                       ||
+                ((config.target_type !== undefined)        && (typeof(config.target_type) !== 'string'))        ||
+                ((config.target_dest !== undefined)        && (typeof(config.target_dest) !== 'string'))        ||
+                ((config.loss_limit !== undefined)         && (typeof(config.loss_limit) !== 'number'))         ||
+                ((config.packet_size !== undefined)        && (typeof(config.packet_size) !== 'number'))        ||
+                ((config.ping_period !== undefined)        && (typeof(config.ping_period) !== 'number'))        ||
+                ((config.ping_interval !== undefined)      && (typeof(config.ping_count) !== 'number'))         ||
+                ((config.ping_count !== undefined)         && (typeof(config.ping_count) !== 'number'))         ||
+                ((config.data_buffer_size !== undefined)   && (typeof(config.data_buffer_size) !== 'number'))   ||
+                ((config.data_buffer_filter !== undefined) && (typeof(config.data_buffer_filter) !== 'number')) ||
+                ((config.alert_threshold !== undefined)    && (typeof(config.alert_threshold) !== 'number'))    ||
+                ((config.peak_expiration !== undefined)    && (typeof(config.peak_expiration) !== 'number'))    ||
+                ((config.expected_nominal !== undefined)   && (typeof(config.expected_nominal) !== 'number'))   ||
+                ((config.expected_stdev !== undefined)     && (typeof(config.expected_stdev) !== 'number'))       ) {
 
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
             }
@@ -201,9 +217,27 @@ export class NetworkTarget extends EventEmitter {
                     throw new RangeError(`Ping expiration time is undefined or is less than the minimum. ${config.peak_expiration}`);
                 }
             }
+            if (config.data_buffer_size) {
+                if (config.data_buffer_size >= MINIMUM_BUFFER_SIZE) {
+                    dataBufferSize = config.data_buffer_size;
+                }
+                else {
+                    throw new RangeError(`Data Buffer Size is undefined or is less than the minimum. ${config.data_buffer_size}`);
+                }
+            }
+            if (config.data_buffer_filter) {
+                const candidateFilter = config.data_buffer_filter / 100.0;
+                if ((candidateFilter >= MINIMUM_DATA_FILTER) &&
+                    (candidateFilter <= MAXIMUM_DATA_FILTER))  {
+                    dataBufferFilter = candidateFilter;
+                }
+                else {
+                    throw new RangeError(`Data Buffer Filter Factor is undefined or is less than the minimum. ${config.data_buffer_filter}`);
+                }
+            }
             if (config.alert_threshold) {
                 if (config.alert_threshold >= 0) {
-                    alertThreshold = config.alert_threshold;
+                    alertFactor = config.alert_threshold;
                 }
                 else {
                     throw new RangeError(`Alert Threshold is undefined or is less than the minimum. ${config.alert_threshold}`);
@@ -231,19 +265,21 @@ export class NetworkTarget extends EventEmitter {
         super();
 
         // Set internal members.
-        this._target_type       = targetType;
-        this._target_dest       = targetDest;
-        this._ping_count        = pingCount;
-        this._loss_limit        = lossLimit;
-        this._ping_packet_size  = packetSize;
-        this._ping_interval     = pingInterval;
-        this._ping_period       = pingPeriod;
-        this._peak_expiration   = peakExpirationTime;
-        this._alert_threshold   = alertThreshold;
-        this._expected_nominal  = expectedNominal;
-        this._expected_stdev    = expectedStDev;
-        this._timeoutID         = INVALID_TIMEOUT_ID;
-        this._pingInProgress    = false;
+        this._target_type               = targetType;
+        this._target_dest               = targetDest;
+        this._ping_count                = pingCount;
+        this._loss_limit                = lossLimit;
+        this._ping_packet_size          = packetSize;
+        this._ping_interval             = pingInterval;
+        this._ping_period               = pingPeriod;
+        this._peak_expiration           = peakExpirationTime;
+        this._data_buffer_size          = dataBufferSize;
+        this._data_elimination_count    = Math.floor(dataBufferFilter * dataBufferSize);
+        this._alert_threshold           = (alertFactor * this._data_buffer_size);
+        this._expected_nominal          = expectedNominal;
+        this._expected_stdev            = expectedStDev;
+        this._timeoutID                 = INVALID_TIMEOUT_ID;
+        this._pingInProgress            = false;
 
         // Create a map of Date objects for tracking when the peaks
         // were last set.
@@ -251,11 +287,15 @@ export class NetworkTarget extends EventEmitter {
         this._peakTime = new Map([[PEAK_TYPES.TIME,  now],
                                   [PEAK_TYPES.STDEV, now],
                                   [PEAK_TYPES.LOSS,  now]]);
-            // Create a map of counters for tracking the number of consecutive failures.
-            // Used to know when to set an CO2 Detected alarm.
+        // Create a map of counters for tracking the number of consecutive failures.
+        // Used to know when to set an CO2 Detected alarm.
         this._alertCount = new Map([[ALERT_TYPES.TIME,  0],
                                     [ALERT_TYPES.STDEV, 0],
                                     [ALERT_TYPES.LOSS,  0]]);
+        // Create a map of data buffers for the numeric results.
+        this._dataBuffers = new Map([[DATA_BUFFER_TYPES.TIME,  []],
+                                     [DATA_BUFFER_TYPES.STDEV, []],
+                                     [DATA_BUFFER_TYPES.LOSS,  []]]);
 
         // Callbacks bound to this object.
         this._CB__initiateCheck     = this._on_initiateCheck.bind(this);
@@ -531,10 +571,11 @@ export class NetworkTarget extends EventEmitter {
         _debug(response.result);
 
         // Default values used for publishing to listeners
-        let packetLoss  = 100.0;
-        let avgTime     = 0.0;
-        let stDevTime   = 99.0;
-        let err         = true;
+        let err             = true;
+        // Map for tracking which buffers to trim (from the left)
+        let removeOld = new Map([[DATA_BUFFER_TYPES.TIME,  true],
+                                 [DATA_BUFFER_TYPES.STDEV, true],
+                                 [DATA_BUFFER_TYPES.LOSS,  true]]);
 
         if (response.valid &&
             (response.result !== undefined)) {
@@ -546,6 +587,15 @@ export class NetworkTarget extends EventEmitter {
             const STATS_TAG = 'ping statistics';
             for (let index=0; index<lines.length; index++) {
                 if (lines[index].toLowerCase().includes(STATS_TAG)) {
+
+                    // Determine if the buffers need to be purged.
+                    this._dataBuffers.forEach((value, key, map) => {
+                        if ((value.length < this._data_buffer_size)) {
+                            // Mark this buffer as not needing to be removed.
+                            removeOld.set(key, false);
+                        }
+                    });
+
                     // We assume that the next line has the packet loss stats.
                     if ((index + 1) < lines.length) {
                         const packet_stats = lines[index+1].split(',');
@@ -554,7 +604,7 @@ export class NetworkTarget extends EventEmitter {
                             const PACKET_LOSS_TAG = '% packet loss';
                             const packet_loss_tag_locn = packet_stats[2].toLowerCase().indexOf(PACKET_LOSS_TAG);
                             if (packet_loss_tag_locn >= 0) {
-                                packetLoss = Number.parseFloat(packet_stats[2].toLowerCase().slice(0, packet_loss_tag_locn));
+                                this._dataBuffers.get(DATA_BUFFER_TYPES.LOSS).push(Number.parseFloat(packet_stats[2].toLowerCase().slice(0, packet_loss_tag_locn)));
                             }
                         }
                     }
@@ -568,22 +618,36 @@ export class NetworkTarget extends EventEmitter {
                         const ping_stat_data = ping_stats.split('/');
                         // There should be 4 elements (min/avg/max/stddev)
                         if (ping_stat_data.length === 4) {
-                            avgTime = Number.parseFloat(ping_stat_data[1]);
-                            stDevTime = Number.parseFloat(ping_stat_data[3]);
+                            this._dataBuffers.get(DATA_BUFFER_TYPES.TIME).push(Number.parseFloat(ping_stat_data[1]));
+                            this._dataBuffers.get(DATA_BUFFER_TYPES.STDEV).push(Number.parseFloat(ping_stat_data[3]));
                         }
 
                         // Clear the error flag
                         err = false;
                     }
-                    // no need to keep seatching.
+
+                    // no need to keep searching.
                     break;
                 }
             }
         }
 
+        // Purge old data, as needed
+        this._dataBuffers.forEach((value, key, map) => {
+            if (removeOld.get(key)) {
+                // Purge the data. Ok if the buffer is already empty.
+                value.shift();
+            }
+        });
+
         // Raise an event informing interested parties of the results.
         try {
-            this.emit('ready', {sender:this, error:err, packet_loss:packetLoss, ping_time_ms:avgTime, ping_stdev:stDevTime});
+            // Get the results
+            const time  = this._computeAverages(DATA_BUFFER_TYPES.TIME);
+            const stdev = this._computeAverages(DATA_BUFFER_TYPES.STDEV);
+            const loss  = this._computeAverages(DATA_BUFFER_TYPES.LOSS);
+
+            this.emit('ready', {sender:this, error:err, packet_loss:loss, ping_time_ms:time, ping_stdev:stdev});
         }
         catch (e) {
             console.log(`Error encountered raising 'ready' event. ${e}`);
@@ -636,5 +700,59 @@ export class NetworkTarget extends EventEmitter {
         else {
             throw new Error(`_on_find_gateway_address() called inappropriately`);
         }
+    }
+
+/*  ========================================================================
+    Description:    Helper to compute the averages of the requested data buffer.
+
+    @param { buffer_type } [buffer_type]     - The requested buffer type for statistics.
+
+    @return {number} - average value of the requested databuffer. NAN if no data is present.
+
+    @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
+    ======================================================================== */
+    _computeAverages(buffer_type) {
+        // Validate arguments
+        if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
+            (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) < 0)) {
+            throw new TypeError(`buffer_type not a member of DATA_BUFFER_TYPES. ${buffer_type}`);
+        }
+
+        // Make a deep copy of the buffer
+        let buffer = [].concat(this._dataBuffers.get(buffer_type));
+
+        // Sort the buffer in ascending order.
+        buffer.sort((a, b) => a - b);
+
+        // Compute the number of elements to toss out in the filter.
+        for (let count=0; count < this._data_elimination_count; count++) {
+            if (buffer.length >= this._data_elimination_count) {
+                // Determine which side to toss from, alternating between largest and smallest.
+                if ((count %2) === 0) {
+                    // Toss the largest value.
+                    buffer.pop();
+                }
+                else {
+                    // for fairness, toss the smallest value.
+                    buffer.shift();
+                }
+            }
+            else {
+                // Noting left to do. No need to continue looping, force exit condition.
+                count = this._data_elimination_count + 1;
+            }
+        }
+
+        // Sum all the values remaining.
+        let sum = 0.0;
+        for (const val of buffer) {
+            sum += val;
+        }
+
+        // Compute the average
+        const size = buffer.length;
+        const avg  = ((size > 0) ? (sum/size) : Number.POSITIVE_INFINITY);
+
+        return avg;
     }
 }

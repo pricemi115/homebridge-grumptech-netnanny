@@ -202,7 +202,15 @@ class NetworkPerformanceMonitorPlatform {
                         if ((itemConfig.hasOwnProperty('peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
                             targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
-                        /* Get the alert threshold */
+                        /* Get the data buffer size */
+                        if ((itemConfig.hasOwnProperty('data_buffer_size')) && (typeof(itemConfig.data_buffer_size) === 'number')) {
+                            targetConfig.data_buffer_size = itemConfig.data_buffer_size;
+                        }
+                        /* Get the data buffer filter factor */
+                        if ((itemConfig.hasOwnProperty('data_buffer_filter')) && (typeof(itemConfig.data_buffer_filter) === 'number')) {
+                            targetConfig.data_buffer_filter = itemConfig.data_buffer_filter;
+                        }
+                        /* Get the alert threshold factor */
                         if ((itemConfig.hasOwnProperty('alert_threshold')) && (typeof(itemConfig.alert_threshold) === 'number')) {
                             targetConfig.alert_threshold = itemConfig.alert_threshold;
                         }
