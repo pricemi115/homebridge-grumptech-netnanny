@@ -586,6 +586,7 @@ class NetworkPerformanceMonitorPlatform {
                 }
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.StatusFault, faultCode);
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.StatusLowBattery, batteryStatus);
+                serviceCO2Ping.updateCharacteristic(_hap.Characteristic.StatusActive, values.active);
 
                 // Get the current peak.
                 const currentPeak = serviceCO2Ping.getCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel).value;
