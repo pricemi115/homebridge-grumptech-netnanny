@@ -1,5 +1,5 @@
 {
-    "pluginAlias": "GrumpTech Net Nanny Platform",
+    "pluginAlias": "GrumpTechHomebridgeNetNanny",
     "pluginType": "platform",
     "singular": true,
     "headerDisplay": "This plugin is provided by [GrumpTech](https://github.com/pricemi115/)",
@@ -11,18 +11,120 @@
                 "title": "Settings",
                 "type": "object",
                 "properties": {
-                    "polling_interval": {
-                        "title": "Polling Interval",
-                        "description": "The time in hours to report updates for mounted volumes.",
+                    "ping_period": {
+                        "title": "Ping Period",
+                        "description": "The time, in seconds, to initiate a series of ping requests.",
+                        "type": "number",
+                        "default": "20",
+                        "required": false
+                    },
+                    "ping_interval": {
+                        "title": "Ping Interval",
+                        "description": "The time, in seconds, between each ping request.",
                         "type": "number",
                         "default": "1",
-                        "required": true
+                        "required": false
                     },
-                    "alarm_threshold": {
-                        "title": "Low Space Alarm Threshold",
-                        "description": "The threshold for indicating an alert when remaining space gets low. Expressed as a percentage.",
+                    "ping_count": {
+                        "title": "Ping Count",
+                        "description": "The number of ping request for each series.",
                         "type": "number",
-                        "default": "15",
+                        "default": "5",
+                        "required": false
+                    },
+                    "packet_size": {
+                        "title": "Packet Size",
+                        "description": "The size, in bytes, of each ping request.",
+                        "type": "number",
+                        "default": "56",
+                        "required": false
+                    },
+                    "ping_targets": {
+                        "title": "Network Performance Targets",
+                        "description": "List of targets to ping.",
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "target_type": {
+                                    "title": "Target Type",
+                                    "description": "Type of target",
+                                    "type": "string",
+                                    "default": "ipv4",
+                                    "oneOf": [
+                                        { "title": "URI", "enum": ["uri"] },
+                                        { "title": "IPV4", "enum": ["ipv4"] },
+                                        { "title": "IPV6", "enum": ["ipv6"] },
+                                        { "title": "Gateway/Router", "enum": ["gateway"] },
+                                        { "title": "Cable Modem", "enum": ["cable_modem"] }
+                                      ],
+                                    "required": true
+                                },
+                                "target_dest": {
+                                    "title": "Target Destination",
+                                    "description": "Destination for the ping",
+                                    "type": "string",
+                                    "required": false,
+                                    "condition": {
+                                        "functionBody": "return (model.settings.ping_targets[arrayIndices] && model.settings.ping_targets[arrayIndices].target_type !== 'cable_modem' && model.settings.ping_targets[arrayIndices].target_type !== 'gateway');"
+                                    }
+                                },
+                                "loss_limit": {
+                                    "title": "Packet Loss Limit",
+                                    "description": "The limit, in percent, of lost packets that will be tolerated.",
+                                    "type": "number",
+                                    "default": 5,
+                                    "minimum": 0,
+                                    "maximum": 100,
+                                    "required": false
+                                },
+                                "expected_nominal": {
+                                    "title": "Expected Nominal",
+                                    "description": "The expected time, in milliseconds, for the ping.",
+                                    "type": "number",
+                                    "default": 10,
+                                    "required": false
+                                },
+                                "expected_stdev": {
+                                    "title": "Expected Standard Deviation",
+                                    "description": "The expected standard deviation for the set of ping requests.",
+                                    "type": "number",
+                                    "default": 1,
+                                    "required": false
+                                },
+                                "peak_expiration": {
+                                    "title": "Peak Expiratioin Time",
+                                    "description": "The time, in hours, used to reset the peak values.",
+                                    "type": "number",
+                                    "default": 12,
+                                    "required": false
+                                },
+                                "data_buffer_size": {
+                                    "title": "Data buffer size",
+                                    "description": "The number of readings to be retained to compute a moving average.",
+                                    "type": "number",
+                                    "default": 10,
+                                    "minimum": 1,
+                                    "required": false
+                                },
+                                "data_buffer_filter": {
+                                    "title": "Filter factor of outlier values eliminated from the moving average calculation. Expressed as a percent of the data buffer size.",
+                                    "type": "number",
+                                    "default": 20,
+                                    "minimum": 0,
+                                    "maximum": 50,
+                                    "required": false
+                                },
+                                "alert_threshold": {
+                                    "title": "Carbon Dioxide Alert Factor",
+                                    "description": "Used to compute the number of consecutive updates that exceed the limitations for the ping attribute being monitired (Time, Standard Deviation, and/or Packet Loss). Expressed as a factor of the data buffer size.",
+                                    "type": "number",
+                                    "default": 2,
+                                    "minimum": 1,
+                                    "required": false
+                                }
+                            }
+                        },
                         "required": true
                     }
                 }
