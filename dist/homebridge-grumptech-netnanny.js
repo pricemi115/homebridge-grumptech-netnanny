@@ -1060,6 +1060,7 @@ class NetworkTarget extends EventEmitter {
         this._expected_stdev            = expectedStDev;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
         this._pingInProgress            = false;
+        this._destination_pending       = false;
 
         // Create a map of Date objects for tracking when the peaks
         // were last set.
@@ -1095,6 +1096,8 @@ class NetworkTarget extends EventEmitter {
             const ping = new SpawnHelper();
             ping.on('complete', this._CB__findGatewayAddr);
             ping.Spawn({ command:'route', arguments:[`get`, `default`] });
+
+            this._destination_pending = true;
         }
 
         // Create an identifier based on the target type & destination.
@@ -1184,6 +1187,16 @@ class NetworkTarget extends EventEmitter {
     ======================================================================== */
     get ExpectedStdDev() {
         return this._expected_stdev;
+    }
+
+/*  ========================================================================
+    Description: Read Property accessor for determining if the TargetDestination
+                 is pending (used for the Gateway type)
+
+    @return {boolean} - true if pending, false otherwise.
+    ======================================================================== */
+    get IsTargetSestinationPending() {
+        return this._destination_pending;
     }
 
 /*  ========================================================================
@@ -1463,12 +1476,13 @@ class NetworkTarget extends EventEmitter {
                 for (const line of lines) {
                     if (line.includes(GATEWAY_HEADER)) {
                         const startIndex = line.indexOf(GATEWAY_HEADER);
-                        console.log(`Gateway Line: index:${startIndex} ${line}`);
 
                         if ((startIndex >= 0) &&
                             (line.length > (startIndex + GATEWAY_HEADER.length))) {
                             // set the destination to the gateway.
                             this._target_dest = line.substr(startIndex + GATEWAY_HEADER.length);
+
+                            _debug$1(`Gateway identified: ${this.TargetDestination}`);
                         }
                     }
                 }
@@ -1480,6 +1494,9 @@ class NetworkTarget extends EventEmitter {
         else {
             throw new Error(`_on_find_gateway_address() called inappropriately`);
         }
+
+        // Regardless of the result, the target destination is no longer pending.
+        this._destination_pending = false;
     }
 
 /*  ========================================================================
@@ -1750,41 +1767,61 @@ class NetworkPerformanceMonitorPlatform {
     ======================================================================== */
     async _doInitialization() {
 
-        this._log(`Homebridge Plug-In ${PLATFORM_NAME} has finished launching.`);
-
-        // Flush any accessories that are not from this version
-        const accessoriesToRemove = [];
-        for (const accessory of this._accessories.values()) {
-            if (!accessory.context.hasOwnProperty('VERSION') ||
-                (accessory.context.VERSION !== ACCESSORY_VERSION)) {
-                this._log(`Accessory ${accessory.displayName} has accessory version ${accessory.context.VERSION}. Version ${ACCESSORY_VERSION} is expected.`);
-                // This accessory needs to be replaced.
-                accessoriesToRemove.push(accessory);
+        // Some network performance targets may still we waiting to complete initialization
+        // (i.e. Gateways). Ensure that all npt's are not pending. If any are, then defer initialization.
+        let defer = false;
+        for (const target of this._networkPerformanceTargets.values()) {
+            if (target.IsTargetSestinationPending) {
+                // Give a bit
+                this._log(`Target ${target.ID} is pending. Defer initialization..`);
+                defer = true;
+                // No need to continue looking.
+                break;
             }
         }
-        // Perform the cleanup.
-        accessoriesToRemove.forEach(accessory => {
-            this._removeAccessory(accessory);
-        });
 
-        // Start the network performance targets
-        for (const target of this._networkPerformanceTargets.values()) {
-            // Is this network performance target new?
-            if (!this._accessories.has(target.ID)) {
-                // There is no matching accessory for this network performance target.
-                // Create and register an accessory.
-                this._addNetworkPerformanceAccessory(target.ID);
+        if (defer)
+        {
+            // Try again later.
+            setTimeout(this._doInitialization.bind(this), 100);
+        }
+        else {
+            this._log(`Homebridge Plug-In ${PLATFORM_NAME} has finished launching.`);
+
+            // Flush any accessories that are not from this version
+            const accessoriesToRemove = [];
+            for (const accessory of this._accessories.values()) {
+                if (!accessory.context.hasOwnProperty('VERSION') ||
+                    (accessory.context.VERSION !== ACCESSORY_VERSION)) {
+                    this._log(`Accessory ${accessory.displayName} has accessory version ${accessory.context.VERSION}. Version ${ACCESSORY_VERSION} is expected.`);
+                    // This accessory needs to be replaced.
+                    accessoriesToRemove.push(accessory);
+                }
             }
+            // Perform the cleanup.
+            accessoriesToRemove.forEach(accessory => {
+                this._removeAccessory(accessory);
+            });
 
-            // Register for the 'ready' event.
-            target.on('ready', this._bindPingReady);
+            // Start the network performance targets
+            for (const target of this._networkPerformanceTargets.values()) {
+                // Is this network performance target new?
+                if (!this._accessories.has(target.ID)) {
+                    // There is no matching accessory for this network performance target.
+                    // Create and register an accessory.
+                    this._addNetworkPerformanceAccessory(target.ID);
+                }
 
-            // Get the accessory to see if it is active or not.
-            const accessory = this._accessories.get(target.ID);
-            // Is the accessory active?
-            if (this._getAccessorySwitchState(accessory)) {
-                // Start the Network Performance Target.
-                target.Start();
+                // Register for the 'ready' event.
+                target.on('ready', this._bindPingReady);
+
+                // Get the accessory to see if it is active or not.
+                const accessory = this._accessories.get(target.ID);
+                // Is the accessory active?
+                if (this._getAccessorySwitchState(accessory)) {
+                    // Start the Network Performance Target.
+                    target.Start();
+                }
             }
         }
     }
