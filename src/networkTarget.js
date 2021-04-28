@@ -280,6 +280,7 @@ export class NetworkTarget extends EventEmitter {
         this._expected_stdev            = expectedStDev;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
         this._pingInProgress            = false;
+        this._destination_pending       = false;
 
         // Create a map of Date objects for tracking when the peaks
         // were last set.
@@ -315,6 +316,8 @@ export class NetworkTarget extends EventEmitter {
             const ping = new SpawnHelper();
             ping.on('complete', this._CB__findGatewayAddr);
             ping.Spawn({ command:'route', arguments:[`get`, `default`] });
+
+            this._destination_pending = true;
         }
 
         // Create an identifier based on the target type & destination.
@@ -404,6 +407,16 @@ export class NetworkTarget extends EventEmitter {
     ======================================================================== */
     get ExpectedStdDev() {
         return this._expected_stdev;
+    }
+
+/*  ========================================================================
+    Description: Read Property accessor for determining if the TargetDestination
+                 is pending (used for the Gateway type)
+
+    @return {boolean} - true if pending, false otherwise.
+    ======================================================================== */
+    get IsTargetSestinationPending() {
+        return this._destination_pending;
     }
 
 /*  ========================================================================
@@ -683,12 +696,13 @@ export class NetworkTarget extends EventEmitter {
                 for (const line of lines) {
                     if (line.includes(GATEWAY_HEADER)) {
                         const startIndex = line.indexOf(GATEWAY_HEADER);
-                        console.log(`Gateway Line: index:${startIndex} ${line}`);
 
                         if ((startIndex >= 0) &&
                             (line.length > (startIndex + GATEWAY_HEADER.length))) {
                             // set the destination to the gateway.
                             this._target_dest = line.substr(startIndex + GATEWAY_HEADER.length);
+
+                            _debug(`Gateway identified: ${this.TargetDestination}`);
                         }
                     }
                 }
@@ -700,6 +714,9 @@ export class NetworkTarget extends EventEmitter {
         else {
             throw new Error(`_on_find_gateway_address() called inappropriately`);
         }
+
+        // Regardless of the result, the target destination is no longer pending.
+        this._destination_pending = false;
     }
 
 /*  ========================================================================
