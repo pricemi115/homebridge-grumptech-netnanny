@@ -43,17 +43,12 @@ If you would rather manually configure and run the plugin, you will find a sampl
 TODO
 
 ## Restrictions
-This module operates by using shell commands to the `ping` program. As long as the plugin is able to do this, there should not be any additional restrictions.
-
-## History
-Version | Release Date | Comments
-------: | :----------: | :-------
-0.0.1   | YYYY-MMM-DD | Initial release to npm
+This module operates by using shell commands to the `ping` and `route` programs. At this time, the plugin assumes macOS output when parsing the results. While the `ping` output is consistent across operating systems, the `route` output is operating system specific. As a result, the `gateway/router` type selection is limited to macOS.
 
 ## Known Issues and Planned Enhancements
 Refer to the bugs and enhancements listed [here](https://github.com/pricemi115/homebridge-grumptech-volmon/issues)
-## Contributing
 
+## Contributing
 1. Fork it!
 2. Create your feature/fix branch: `git checkout -b my-new-feature`
 3. Commit your changes: `git commit -am 'Add some feature'`
@@ -61,7 +56,6 @@ Refer to the bugs and enhancements listed [here](https://github.com/pricemi115/h
 5. Submit a pull request
 
 ## Credits
-
 Many thanks to all the folks contributing to [Homebridge](https://homebridge.io) and to [oznu](https://github.com/oznu) for [homebridge-config-ui-x](https://www.npmjs.com/package/homebridge-config-ui-x), allowing for the possibility of this sort of fun and learning.<br/>
 Special thanks to [Dave Hamilton's](https://twitter.com/DaveHamilton), [John F. Braun](https://twitter.com/johnfbraun), and the [MacGeekGab](https://twitter.com/MacObserver) podcast for inspiring the idea for this plugin.
 
