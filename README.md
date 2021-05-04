@@ -39,8 +39,18 @@ Additionally, especially if this system will be running other homebridge modules
 
 ### Manual Configuration
 If you would rather manually configure and run the plugin, you will find a sample _config.json_ file in the `./config` folder. It is left to the user to get the plugin up and running within homebridge. Refer to the section above for specifics on the configuration parameters.
+
 ## Usage
-TODO
+The plugin will create, or restore, a dynamic accessory for each network target specified in the comfiguration. Each accessory will advertise four services: (1) switch, and (3) carbon dioxide sensors. All of the data presented for the carbon dioxide sensors is the result of passing the ping results through a moving average. In an effort to keep outliers from affecting the reported values, a user-specified number of outliers will be excluded from the moving average computation. The outliners that are excluded alternate between the highest then lowest values until the number of values to exclude has been reached.
+
+- **Power**: A switch, with the name of the Target Destination, that controls the active state of the network performance target.
+- **Time**: The average ping time, in milliseconds. The peak value is also displayed.
+- **Standard Deviation**: The standard deviation of this ping results, in milliseconds. The peak value is also displayed.
+- **Packet Loss**: The packet loss, in percent. The peak value is also displayed.
+
+When the current value for any of the carbon dioxide sensors exceeds the user-specified expected limits, the sensor’s alert will be set. When the value continues to exceed the limits beyond a user configurable threshold, the sensor’s _Detected_ value will be set to abnormal levels.
+
+When the accessory is inactive, the _Active_ and _Low Battery Status_ are set. 
 
 ## Restrictions
 This module operates by using shell commands to the `ping` and `route` programs. At this time, the plugin assumes macOS output when parsing the results. While the `ping` output is consistent across operating systems, the `route` output is operating system specific. As a result, the `gateway/router` type selection is limited to macOS.
