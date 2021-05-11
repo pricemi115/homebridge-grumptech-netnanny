@@ -13,8 +13,44 @@
       "platform" : "GrumpTechHomebridgeNetNanny",
       "name" : "homebridge-grumptech-netnanny",
       "settings": {
-
-      }
+        "ping_targets": [
+            {
+                "target_type": "cable_modem",
+                "loss_limit": 15,
+                "expected_nominal": 10,
+                "expected_stdev": 3,
+                "peak_expiration": 8,
+                "data_buffer_size": 10,
+                "data_buffer_filter": 20,
+                "alert_threshold": 2
+            },
+            {
+                "target_type": "ipv4",
+                "target_dest": "google-public-dns-b.google.com",
+                "loss_limit": 15,
+                "expected_nominal": 27,
+                "expected_stdev": 5,
+                "peak_expiration": 8,
+                "data_buffer_size": 10,
+                "data_buffer_filter": 20,
+                "alert_threshold": 2
+            },
+            {
+                "target_type": "gateway",
+                "loss_limit": 15,
+                "expected_nominal": 10,
+                "expected_stdev": 3,
+                "peak_expiration": 8,
+                "data_buffer_size": 10,
+                "data_buffer_filter": 20,
+                "alert_threshold": 2
+            }
+        ],
+        "ping_period": 20,
+        "ping_interval": 1,
+        "ping_count": 5,
+        "packet_size": 56
+    },
     }
   ]
 }
