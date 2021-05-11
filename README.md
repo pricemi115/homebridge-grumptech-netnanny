@@ -16,7 +16,7 @@ This plugin is best experienced when running as a module installed and managed b
 <img src="./assets/config-ui-x_settings.png"
      alt="homebridge-config-ui-x plugin settings screen for Net Nanny"
      style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
-     width="40%">
+     width="15%">
 <img src="./assets/config-ui-x_configjson.png"
      alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny"
      style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
