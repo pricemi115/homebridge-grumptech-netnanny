@@ -201,6 +201,10 @@ class NetworkPerformanceMonitorPlatform {
                         if ((itemConfig.hasOwnProperty('peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
                             targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
+                        /* Get the data filter time window (sec) */
+                        if ((itemConfig.hasOwnProperty('data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
+                            targetConfig.data_filter_time_window = itemConfig.data_filter_time_window;
+                        }
 
                         /* Create the network target. */
                         const networkTarget = new _NetworkTarget(targetConfig);

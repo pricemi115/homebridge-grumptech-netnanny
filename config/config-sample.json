@@ -19,7 +19,8 @@
                 "loss_limit": 15,
                 "expected_nominal": 10,
                 "expected_stdev": 3,
-                "peak_expiration": 8
+                "peak_expiration": 8,
+                "data_filter_time_window": 180
             },
             {
                 "target_type": "ipv4",
@@ -27,14 +28,16 @@
                 "loss_limit": 15,
                 "expected_nominal": 27,
                 "expected_stdev": 5,
-                "peak_expiration": 8
+                "peak_expiration": 8,
+                "data_filter_time_window": 180
             },
             {
                 "target_type": "gateway",
                 "loss_limit": 15,
                 "expected_nominal": 10,
                 "expected_stdev": 3,
-                "peak_expiration": 8
+                "peak_expiration": 8,
+                "data_filter_time_window": 180
             }
         ],
         "ping_period": 20,
