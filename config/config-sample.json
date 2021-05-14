@@ -20,8 +20,7 @@
                 "expected_nominal": 10,
                 "expected_stdev": 3,
                 "peak_expiration": 8,
-                "data_buffer_size": 10,
-                "data_buffer_filter": 20
+                "data_buffer_size": 10
             },
             {
                 "target_type": "ipv4",
@@ -30,8 +29,7 @@
                 "expected_nominal": 27,
                 "expected_stdev": 5,
                 "peak_expiration": 8,
-                "data_buffer_size": 10,
-                "data_buffer_filter": 20
+                "data_buffer_size": 10
             },
             {
                 "target_type": "gateway",
@@ -39,8 +37,7 @@
                 "expected_nominal": 10,
                 "expected_stdev": 3,
                 "peak_expiration": 8,
-                "data_buffer_size": 10,
-                "data_buffer_filter": 20
+                "data_buffer_size": 10
             }
         ],
         "ping_period": 20,
