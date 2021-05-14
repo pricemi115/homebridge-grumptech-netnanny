@@ -23,21 +23,24 @@
                         "title": "Ping Interval",
                         "description": "The time, in seconds, between each ping request.",
                         "type": "number",
-                        "default": "1",
+                        "default": 1,
+                        "minimim": 1,
                         "required": false
                     },
                     "ping_count": {
                         "title": "Ping Count",
                         "description": "The number of ping request for each series.",
                         "type": "number",
-                        "default": "5",
+                        "default": 5,
+                        "minimum": 3,
                         "required": false
                     },
                     "packet_size": {
                         "title": "Packet Size",
                         "description": "The size, in bytes, of each ping request.",
                         "type": "number",
-                        "default": "56",
+                        "default": 56,
+                        "minimum": 56,
                         "required": false
                     },
                     "ping_targets": {
@@ -115,14 +118,6 @@
                                     "default": 20,
                                     "minimum": 0,
                                     "maximum": 50,
-                                    "required": false
-                                },
-                                "alert_threshold": {
-                                    "title": "Carbon Dioxide Alert Factor",
-                                    "description": "Used to compute the number of consecutive updates that exceed the limitations for the ping attribute being monitired (Time, Standard Deviation, and/or Packet Loss). Expressed as a factor of the data buffer size.",
-                                    "type": "number",
-                                    "default": 2,
-                                    "minimum": 1,
                                     "required": false
                                 }
                             }

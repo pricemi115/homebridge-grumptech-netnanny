@@ -49,8 +49,7 @@ import {
 
 // Internal dependencies
 import { NetworkTarget as _NetworkTarget,
-         PEAK_TYPES as _TARGET_PEAK_TYPES,
-         ALERT_TYPES as TARGET_ALERT_TYPES } from './networkTarget.js';
+         PEAK_TYPES as _TARGET_PEAK_TYPES } from './networkTarget.js';
 
 // Configuration constants.
 const PLUGIN_NAME   = CONFIG_INFO.plugin;
@@ -61,9 +60,9 @@ const ACCESSORY_VERSION = 1;
 
 const SERVICE_INFO = {
     POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
-    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME,  alert:TARGET_ALERT_TYPES.TIME},
-    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV, alert:TARGET_ALERT_TYPES.STDEV},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,  alert:TARGET_ALERT_TYPES.LOSS}
+    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME},
+    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS}
 }
 
 // Accessory must be created from PlatformAccessory Constructor
@@ -209,10 +208,6 @@ class NetworkPerformanceMonitorPlatform {
                         /* Get the data buffer filter factor */
                         if ((itemConfig.hasOwnProperty('data_buffer_filter')) && (typeof(itemConfig.data_buffer_filter) === 'number')) {
                             targetConfig.data_buffer_filter = itemConfig.data_buffer_filter;
-                        }
-                        /* Get the alert threshold factor */
-                        if ((itemConfig.hasOwnProperty('alert_threshold')) && (typeof(itemConfig.alert_threshold) === 'number')) {
-                            targetConfig.alert_threshold = itemConfig.alert_threshold;
                         }
 
                         /* Create the network target. */
@@ -579,8 +574,7 @@ class NetworkPerformanceMonitorPlatform {
             (!serviceInfo.hasOwnProperty('uuid')  || (typeof(serviceInfo.uuid)  !== 'string') || (serviceInfo.uuid.length <= 0) ) ||
             (!serviceInfo.hasOwnProperty('name')  || (typeof(serviceInfo.name)  !== 'string') || (serviceInfo.name.length <= 0) ) ||
             (!serviceInfo.hasOwnProperty('udst')  || (typeof(serviceInfo.udst)  !== 'string') || (serviceInfo.udst.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('peak')  || (typeof(serviceInfo.peak)  !== 'string') || (serviceInfo.peak.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('alert') || (typeof(serviceInfo.alert) !== 'string') || (serviceInfo.alert.length <= 0) )   )
+            (!serviceInfo.hasOwnProperty('peak')  || (typeof(serviceInfo.peak)  !== 'string') || (serviceInfo.peak.length <= 0) )   )
         {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
@@ -600,12 +594,9 @@ class NetworkPerformanceMonitorPlatform {
                 // Get the network performance target for this accessory
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
 
-                // Manage the alert count on the target.
-                const alertThresholdExceeded = target.UpdateAlert(serviceInfo.alert, (!values.fault));
-
                 // Determine the fault code and CO2 Level
-                const faultCode = (values.fault             ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
-                const co2Level  = (alertThresholdExceeded   ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
+                const co2Level  = (values.fault ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, co2Level);

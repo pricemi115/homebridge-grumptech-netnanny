@@ -49,7 +49,6 @@ Additionally, especially if this system will be running other homebridge modules
 | Peak Expiration Time | The time, in hours, used to reset the peak values. | ping_targets:items:peak_expiration | Per Target | Number | Time:hours | 12 | 0 | N/A ||
 | Data Buffer Size | The number of readings to be retained to compute a moving average. | ping_targets:items:data_buffer_size | Per Target | Number || 10 | 1 | N/A ||
 | Filter Factor | Factor used to compute the number of outlier values eliminated from the moving average calculation. Expressed as a percent of the data buffer size. | ping_targets:items:data_buffer_filter | Per Target | Number | Percent | 20 | 0 | 50 ||
-| Carbon Dioxide Alert Factor | Used to compute the number of consecutive updates that exceed the limitations for the ping attribute being monitired (Time, Standard Deviation, and/or Packet Loss). Expressed as a factor of the data buffer size. | ping_targets:items:alert_threshold | Per Target | Number | Factor | 2 | 1 | N/A ||
 
 ### Manual Configuration
 If you would rather manually configure and run the plugin, you will find a sample _config.json_ file in the `./config` folder. It is left to the user to get the plugin up and running within homebridge. Refer to the section above for specifics on the configuration parameters.
