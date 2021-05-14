@@ -110,15 +110,6 @@
                                     "default": 10,
                                     "minimum": 1,
                                     "required": false
-                                },
-                                "data_buffer_filter": {
-                                    "title": "Filter Factor",
-                                    "description": "Factor used to compute the number of outlier values eliminated from the moving average calculation. Expressed as a percent of the data buffer size.",
-                                    "type": "number",
-                                    "default": 20,
-                                    "minimum": 0,
-                                    "maximum": 50,
-                                    "required": false
                                 }
                             }
                         },

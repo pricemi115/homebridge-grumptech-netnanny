@@ -205,10 +205,6 @@ class NetworkPerformanceMonitorPlatform {
                         if ((itemConfig.hasOwnProperty('data_buffer_size')) && (typeof(itemConfig.data_buffer_size) === 'number')) {
                             targetConfig.data_buffer_size = itemConfig.data_buffer_size;
                         }
-                        /* Get the data buffer filter factor */
-                        if ((itemConfig.hasOwnProperty('data_buffer_filter')) && (typeof(itemConfig.data_buffer_filter) === 'number')) {
-                            targetConfig.data_buffer_filter = itemConfig.data_buffer_filter;
-                        }
 
                         /* Create the network target. */
                         const networkTarget = new _NetworkTarget(targetConfig);
