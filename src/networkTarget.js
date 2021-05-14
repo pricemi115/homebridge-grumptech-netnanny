@@ -33,7 +33,6 @@ const DEFAULT_PACKET_LOSS_LIMIT     = 5.0;
 const MIN_LOSS_LIMIT                = 0.0;
 const MAX_LOSS_LIMIT                = 100.0;
 const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
-const DEFAULT_ALERT_FACTOR          = 2;
 const DEFAULT_BUFFER_SIZE           = 10;
 const MINIMUM_BUFFER_SIZE           = 1;
 const DEFAULT_BUFFER_FILTER         = 0.2;
@@ -54,13 +53,6 @@ export const PEAK_TYPES = {
     TIME       : 'peak_time',
     STDEV      : 'peak_stddev',
     LOSS       : 'peak_packet_loss'
-};
-
-/* Enumeration for alarm threshold types */
-export const ALERT_TYPES = {
-    TIME       : 'alert_time',
-    STDEV      : 'alert_stddev',
-    LOSS       : 'alert_packet_loss'
 };
 
 /* Enumeration for data buffer types */
@@ -94,7 +86,6 @@ export class NetworkTarget extends EventEmitter {
     @param {number} [config.loss_lmit]        - *Optional* The percentage of lost packets that is tolerable.
     @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
     @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
-    @param {number} [config.alert_threshold]  - *Optional* The number of consecutive alerts/faults to tolerate.
     @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
     @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping time.
     @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
@@ -120,7 +111,6 @@ export class NetworkTarget extends EventEmitter {
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
         let dataBufferSize  = DEFAULT_BUFFER_SIZE;
         let dataBufferFilter= DEFAULT_BUFFER_FILTER;
-        let alertFactor     = DEFAULT_ALERT_FACTOR;
         // Check for expected types
         if (config !== undefined) {
             if (                                            (typeof(config) !== 'object')                       ||
@@ -133,7 +123,6 @@ export class NetworkTarget extends EventEmitter {
                 ((config.ping_count !== undefined)         && (typeof(config.ping_count) !== 'number'))         ||
                 ((config.data_buffer_size !== undefined)   && (typeof(config.data_buffer_size) !== 'number'))   ||
                 ((config.data_buffer_filter !== undefined) && (typeof(config.data_buffer_filter) !== 'number')) ||
-                ((config.alert_threshold !== undefined)    && (typeof(config.alert_threshold) !== 'number'))    ||
                 ((config.peak_expiration !== undefined)    && (typeof(config.peak_expiration) !== 'number'))    ||
                 ((config.expected_nominal !== undefined)   && (typeof(config.expected_nominal) !== 'number'))   ||
                 ((config.expected_stdev !== undefined)     && (typeof(config.expected_stdev) !== 'number'))       ) {
@@ -235,14 +224,6 @@ export class NetworkTarget extends EventEmitter {
                     throw new RangeError(`Data Buffer Filter Factor is undefined or is less than the minimum. ${config.data_buffer_filter}`);
                 }
             }
-            if (config.alert_threshold) {
-                if (config.alert_threshold >= 0) {
-                    alertFactor = config.alert_threshold;
-                }
-                else {
-                    throw new RangeError(`Alert Threshold is undefined or is less than the minimum. ${config.alert_threshold}`);
-                }
-            }
             if (config.expected_nominal) {
                 if (config.expected_nominal > 0) {
                     expectedNominal = config.expected_nominal;
@@ -275,7 +256,6 @@ export class NetworkTarget extends EventEmitter {
         this._peak_expiration           = peakExpirationTime;
         this._data_buffer_size          = dataBufferSize;
         this._data_elimination_count    = Math.floor(dataBufferFilter * dataBufferSize);
-        this._alert_threshold           = (alertFactor * this._data_buffer_size);
         this._expected_nominal          = expectedNominal;
         this._expected_stdev            = expectedStDev;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
@@ -288,11 +268,6 @@ export class NetworkTarget extends EventEmitter {
         this._peakTime = new Map([[PEAK_TYPES.TIME,  now],
                                   [PEAK_TYPES.STDEV, now],
                                   [PEAK_TYPES.LOSS,  now]]);
-        // Create a map of counters for tracking the number of consecutive failures.
-        // Used to know when to set an CO2 Detected alarm.
-        this._alertCount = new Map([[ALERT_TYPES.TIME,  0],
-                                    [ALERT_TYPES.STDEV, 0],
-                                    [ALERT_TYPES.LOSS,  0]]);
         // Create a map of data buffers for the numeric results.
         this._dataBuffers = new Map([[DATA_BUFFER_TYPES.TIME,  []],
                                      [DATA_BUFFER_TYPES.STDEV, []],
@@ -460,61 +435,6 @@ export class NetworkTarget extends EventEmitter {
 
         // Update the reference time for the specified peak.
         this._peakTime.set(peak_type, Date.now());
-    }
-
-/*  ========================================================================
-    Description: Determines if the specified alert threshold has been exceeded.
-
-    @param {enum:ALERT_TYPES} [alert_type] - Type of the alert threshold being querried
-
-    @return {boolean} - true if the alert threshold has been exceeded.
-
-    @throws {TypeError} - Thrown if 'alert_type' is not a ALERT_TYPES value.
-    ======================================================================== */
-    IsAlertThresholdExceeded(alert_type) {
-        // Validate arguments
-        if ((alert_type === undefined) || (typeof(alert_type) !== 'string') ||
-            (Object.values(ALERT_TYPES).indexOf(alert_type) < 0)) {
-            throw new TypeError(`alert_type not a member of ALERT_TYPES. ${alert_type}`);
-        }
-
-        // Has the specified alert exceeded its threshold?
-        const expired = (this._alertCount.get(alert_type) > this._alert_threshold);
-
-        return expired;
-    }
-
-/*  ========================================================================
-    Description: Update the count of alerts.
-
-    @param {enum:ALERT_TYPES} [alert_type] - Type of the alarm being managed.
-    @param {boolean}          [alert_reset]- Flag indicating if the alarm count should be reset.
-
-    @return {boolean}   - Flag indicating if the update resulted in the alarm exceeding the threshold.
-
-    @throws {TypeError} - Thrown if 'alert_type' is not a ALERT_TYPES value.
-    @throws {TypeError} - Thrown if 'alert_reset' is not a boolean value.
-    ======================================================================== */
-    UpdateAlert(alert_type, alert_reset) {
-        // Validate arguments
-        if ((alert_type === undefined) || (typeof(alert_type) !== 'string') ||
-            (Object.values(ALERT_TYPES).indexOf(alert_type) < 0)) {
-            throw new TypeError(`alarm_type not a member of ALERT_TYPES. ${alert_type}`);
-        }
-        if ((alert_reset === undefined) || (typeof(alert_reset) !== 'boolean')) {
-            throw new TypeError(`alarm_reset not a boolean. ${alert_reset}`);
-        }
-
-        // Fetermine the new value of the alarm count.
-        const alertCount = (alert_reset ? 0 : (this._alertCount.get(alert_type) + 1));
-
-        // Update the count.
-        this._alertCount.set(alert_type, alertCount);
-
-        // Determine if the alarm has now exceeded the threshold.
-        const exceeded = this.IsAlertThresholdExceeded(alert_type);
-
-        return exceeded;
     }
 
 /*  ========================================================================

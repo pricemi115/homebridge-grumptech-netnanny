@@ -21,8 +21,7 @@
                 "expected_stdev": 3,
                 "peak_expiration": 8,
                 "data_buffer_size": 10,
-                "data_buffer_filter": 20,
-                "alert_threshold": 2
+                "data_buffer_filter": 20
             },
             {
                 "target_type": "ipv4",
@@ -32,8 +31,7 @@
                 "expected_stdev": 5,
                 "peak_expiration": 8,
                 "data_buffer_size": 10,
-                "data_buffer_filter": 20,
-                "alert_threshold": 2
+                "data_buffer_filter": 20
             },
             {
                 "target_type": "gateway",
@@ -42,8 +40,7 @@
                 "expected_stdev": 3,
                 "peak_expiration": 8,
                 "data_buffer_size": 10,
-                "data_buffer_filter": 20,
-                "alert_threshold": 2
+                "data_buffer_filter": 20
             }
         ],
         "ping_period": 20,
