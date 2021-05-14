@@ -102,14 +102,6 @@
                                     "type": "number",
                                     "default": 12,
                                     "required": false
-                                },
-                                "data_buffer_size": {
-                                    "title": "Data buffer size",
-                                    "description": "The number of readings to be retained to compute a moving average.",
-                                    "type": "number",
-                                    "default": 10,
-                                    "minimum": 1,
-                                    "required": false
                                 }
                             }
                         },

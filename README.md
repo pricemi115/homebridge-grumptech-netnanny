@@ -47,7 +47,6 @@ Additionally, especially if this system will be running other homebridge modules
 | Expected Nominal | The expected time, in milliseconds, for the ping. | ping_targets:items:expected_nominal | Per Target | Number | Time:milliseconds | 10 | >0 | N/A ||
 |Expected Standard Deviation | The expected standard deviation for the set of ping requests. | ping_targets:items:expected_stdev | Per Target | Number | Time:milliseconds | 1 | >0 | N/A ||
 | Peak Expiration Time | The time, in hours, used to reset the peak values. | ping_targets:items:peak_expiration | Per Target | Number | Time:hours | 12 | 0 | N/A ||
-| Data Buffer Size | The number of readings to be retained to compute a moving average. | ping_targets:items:data_buffer_size | Per Target | Number || 10 | 1 | N/A ||
 
 ### Manual Configuration
 If you would rather manually configure and run the plugin, you will find a sample _config.json_ file in the `./config` folder. It is left to the user to get the plugin up and running within homebridge. Refer to the section above for specifics on the configuration parameters.

@@ -33,8 +33,6 @@ const DEFAULT_PACKET_LOSS_LIMIT     = 5.0;
 const MIN_LOSS_LIMIT                = 0.0;
 const MAX_LOSS_LIMIT                = 100.0;
 const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
-const DEFAULT_BUFFER_SIZE           = 10;
-const MINIMUM_BUFFER_SIZE           = 1;
 
 /* Enumeration for target types */
 export const TARGET_TYPES = {
@@ -106,7 +104,6 @@ export class NetworkTarget extends EventEmitter {
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
-        let dataBufferSize  = DEFAULT_BUFFER_SIZE;
         // Check for expected types
         if (config !== undefined) {
             if (                                            (typeof(config) !== 'object')                       ||
@@ -117,7 +114,6 @@ export class NetworkTarget extends EventEmitter {
                 ((config.ping_period !== undefined)        && (typeof(config.ping_period) !== 'number'))        ||
                 ((config.ping_interval !== undefined)      && (typeof(config.ping_count) !== 'number'))         ||
                 ((config.ping_count !== undefined)         && (typeof(config.ping_count) !== 'number'))         ||
-                ((config.data_buffer_size !== undefined)   && (typeof(config.data_buffer_size) !== 'number'))   ||
                 ((config.peak_expiration !== undefined)    && (typeof(config.peak_expiration) !== 'number'))    ||
                 ((config.expected_nominal !== undefined)   && (typeof(config.expected_nominal) !== 'number'))   ||
                 ((config.expected_stdev !== undefined)     && (typeof(config.expected_stdev) !== 'number'))       ) {
@@ -201,14 +197,6 @@ export class NetworkTarget extends EventEmitter {
                     throw new RangeError(`Ping expiration time is undefined or is less than the minimum. ${config.peak_expiration}`);
                 }
             }
-            if (config.data_buffer_size) {
-                if (config.data_buffer_size >= MINIMUM_BUFFER_SIZE) {
-                    dataBufferSize = config.data_buffer_size;
-                }
-                else {
-                    throw new RangeError(`Data Buffer Size is undefined or is less than the minimum. ${config.data_buffer_size}`);
-                }
-            }
             if (config.expected_nominal) {
                 if (config.expected_nominal > 0) {
                     expectedNominal = config.expected_nominal;
@@ -239,7 +227,7 @@ export class NetworkTarget extends EventEmitter {
         this._ping_interval             = pingInterval;
         this._ping_period               = pingPeriod;
         this._peak_expiration           = peakExpirationTime;
-        this._data_buffer_size          = dataBufferSize;
+        this._data_buffer_size          = /* TODO */;
         this._expected_nominal          = expectedNominal;
         this._expected_stdev            = expectedStDev;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
