@@ -656,14 +656,13 @@ export class NetworkTarget extends EventEmitter {
         // Raise an event informing interested parties of the results.
         try {
             // Get the results
-            const time  = this._computeAverages(DATA_BUFFER_TYPES.TIME);
-            const stdev = this._computeAverages(DATA_BUFFER_TYPES.STDEV);
-            const loss  = this._computeAverages(DATA_BUFFER_TYPES.LOSS);
+            const time  = this._computeAVT(DATA_BUFFER_TYPES.TIME);
+            const stdev = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
+            const loss  = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
 
             this.emit('ready', {sender:this, error:err, packet_loss:loss, ping_time_ms:time, ping_stdev:stdev});
         }
         catch (e) {
-            console.log(`Error encountered raising 'ready' event. ${e}`);
             _debug(`Error encountered raising 'ready' event. ${e}`);
         }
 
@@ -720,15 +719,78 @@ export class NetworkTarget extends EventEmitter {
     }
 
 /*  ========================================================================
-    Description:    Helper to compute the averages of the requested data buffer.
+    Description:    Helper to compute the statistics of the data provided
 
-    @param { buffer_type } [buffer_type]     - The requested buffer type for statistics.
+    @param { [number] } [data] - Array of numbers from which to compute the statistics.
 
-    @return {number} - average value of the requested databuffer. NAN if no data is present.
+    @return {object} - computed statistics
+    @retuen {object.mean} - average of the data
+    @return {object.median} - median of the data
+    @return {object.stddev} - standard deviation of the data
+
+    @throws {TypeError} - Thrown if 'data' is not an array of numbers.
+    ======================================================================== */
+    _computeStats(data) {
+        // Validate arguments
+        if ((data === undefined) || (!Array.isArray(data)) ||
+            (data.length <= 0)) {
+            throw new TypeError(`data is an array of numbers.`);
+        }
+        for (const val of data) {
+            if (typeof(val) !== 'number') {
+                throw new TypeError(`data contains non-numeric items.`);
+            }
+        }
+
+        // Make a deep copy of the buffer
+        let theData = [].concat(data);
+
+        // Sort the data in ascending order.
+        theData.sort((a, b) => a - b);
+
+        // Perform Welford’s method to compute the mean and variance
+        let mean = 0;
+        let s = 0;
+        let max = Number.NEGATIVE_INFINITY;
+        let min = Number.POSITIVE_INFINITY;
+        for (let index=0; index < theData.length; index++) {
+            const val = theData[index];
+            const lastMean = mean;
+
+            mean += ((val-mean)/(index+1));
+            s += ((val-mean)*(val-lastMean));
+
+            // Update the minimum and maximum as well.
+            if (val < min) {
+                min = val;
+            }
+            if (val > max) {
+                max = val;
+            }
+        }
+        // Compute the standard deviatiation
+        const std_dev = (theData.length > 1) ? (Math.sqrt(s/(theData.length-1))) : Number.NaN;
+
+        // Determine the median
+        // Note: Using Math.floor() biased us to not report false/premature issues/errors.
+        const medianIndex = Math.floor(theData.length/2);
+        const median = theData[medianIndex];
+
+        const result = {mean:mean, stddev:std_dev, median:median, min:min, max:max, size:theData.length};
+
+        return result;
+    }
+
+/*  ========================================================================
+    Description:    Helper to compute the AVT (Antonyan Vardan Transform ) filter algotithm.
+
+    @param { string } [buffer_type] - The requested buffer type for statistics.
+
+    @return {number} - median value of the requested databuffer. NAN if no data is present.
 
     @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
     ======================================================================== */
-    _computeAverages(buffer_type) {
+    _computeAVT(buffer_type) {
         // Validate arguments
         if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
             (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) < 0)) {
@@ -738,38 +800,30 @@ export class NetworkTarget extends EventEmitter {
         // Make a deep copy of the buffer
         let buffer = [].concat(this._dataBuffers.get(buffer_type));
 
-        // Sort the buffer in ascending order.
-        buffer.sort((a, b) => a - b);
+        // Compute the statistics of the data.
+        const stats = this._computeStats(buffer);
 
-        // Compute the number of elements to toss out in the filter.
-        for (let count=0; count < this._data_elimination_count; count++) {
-            if (buffer.length >= this._data_elimination_count) {
-                // Determine which side to toss from, alternating between largest and smallest.
-                if ((count %2) === 0) {
-                    // Toss the largest value.
-                    buffer.pop();
-                }
-                else {
-                    // for fairness, toss the smallest value.
-                    buffer.shift();
+        // Default to the median of the unfiltered stats.
+        let result = stats.median;
+
+        // Filter the data.
+        if (stats.stddev !== Number.NaN) {
+            // Compute the AVT bounds: median +/- stddev
+            const boundMin = stats.median - stats.stddev;
+            const boundMax = stats.median + stats.stddev;
+            let filteredData = [];
+            // Perform the AVT filter, excluding the outliers.
+            for (const val of buffer) {
+                if ((val >= boundMin) && (val <= boundMax)) {
+                    filteredData.push(val);
                 }
             }
-            else {
-                // Noting left to do. No need to continue looping, force exit condition.
-                count = this._data_elimination_count + 1;
-            }
+
+            // Determine the filtered result.
+            const filteredStats = this._computeStats(filteredData);
+            result = filteredStats.median;
         }
 
-        // Sum all the values remaining.
-        let sum = 0.0;
-        for (const val of buffer) {
-            sum += val;
-        }
-
-        // Compute the average
-        const size = buffer.length;
-        const avg  = ((size > 0) ? (sum/size) : Number.POSITIVE_INFINITY);
-
-        return avg;
+        return result;
     }
 }
