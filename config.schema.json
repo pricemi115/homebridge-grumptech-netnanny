@@ -102,6 +102,14 @@
                                     "type": "number",
                                     "default": 12,
                                     "required": false
+                                },
+                                "data_filter_time_window": {
+                                    "title": "Data Filter Time Window",
+                                    "description": "The time, in seconds, over which to filter the ping results. Note: Values less than the 'Ping Period' will be ignored.",
+                                    "type": "number",
+                                    "default": 180,
+                                    "minimum": 6,
+                                    "required": false
                                 }
                             }
                         },

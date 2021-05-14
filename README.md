@@ -45,8 +45,9 @@ Additionally, especially if this system will be running other homebridge modules
 | Target Destination | Destination for the ping | ping_targets:items:target_dest | Per Target | String ||||| Not applicable for gateway or cable_modem |
 | Packet Loss Limit | The limit, in percent, of lost packets that will be tolerated. | ping_targets:items:loss_limit | Per Target | Number | Percent | 5 | 0 | 100 ||
 | Expected Nominal | The expected time, in milliseconds, for the ping. | ping_targets:items:expected_nominal | Per Target | Number | Time:milliseconds | 10 | >0 | N/A ||
-|Expected Standard Deviation | The expected standard deviation for the set of ping requests. | ping_targets:items:expected_stdev | Per Target | Number | Time:milliseconds | 1 | >0 | N/A ||
+| Expected Standard Deviation | The expected standard deviation for the set of ping requests. | ping_targets:items:expected_stdev | Per Target | Number | Time:milliseconds | 1 | >0 | N/A ||
 | Peak Expiration Time | The time, in hours, used to reset the peak values. | ping_targets:items:peak_expiration | Per Target | Number | Time:hours | 12 | 0 | N/A ||
+| Data Filter Time Window | The time, in seconds, over which to filter the ping results. | data_filter_time_window | Per Target | Number | Time:seconds | 180 | 6 | N/A | Values less than the 'Ping Period' will be ignored. |
 
 ### Manual Configuration
 If you would rather manually configure and run the plugin, you will find a sample _config.json_ file in the `./config` folder. It is left to the user to get the plugin up and running within homebridge. Refer to the section above for specifics on the configuration parameters.

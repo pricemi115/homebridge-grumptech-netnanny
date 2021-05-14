@@ -19,7 +19,7 @@ import { SpawnHelper } from './spawnHelper.js';
 _debug.log = console.log.bind(console);
 
 // Helpful constants and conversion factors.
-const DEFAULT_PERIOD_SEC            = 10.0;
+const DEFAULT_PERIOD_SEC            = 20.0;
 const DEFAULT_PING_COUNT            = 5;
 const MIN_PING_COUNT                = 3; // Need at least 3 to compute a standard deviation
 const DEFAULT_PING_INTERVAL         = 1;
@@ -33,6 +33,7 @@ const DEFAULT_PACKET_LOSS_LIMIT     = 5.0;
 const MIN_LOSS_LIMIT                = 0.0;
 const MAX_LOSS_LIMIT                = 100.0;
 const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
+const DEFAULT_DATA_FILTER_TIME_SEC  = 180.0;
 
 /* Enumeration for target types */
 export const TARGET_TYPES = {
@@ -84,6 +85,7 @@ export class NetworkTarget extends EventEmitter {
     @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
     @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping time.
     @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
+    @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
 
     @return {object}  - Instance of the NetworkTarget class.
 
@@ -104,19 +106,21 @@ export class NetworkTarget extends EventEmitter {
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
+        let dataFilterTime  = DEFAULT_DATA_FILTER_TIME_SEC;
         // Check for expected types
         if (config !== undefined) {
-            if (                                            (typeof(config) !== 'object')                       ||
-                ((config.target_type !== undefined)        && (typeof(config.target_type) !== 'string'))        ||
-                ((config.target_dest !== undefined)        && (typeof(config.target_dest) !== 'string'))        ||
-                ((config.loss_limit !== undefined)         && (typeof(config.loss_limit) !== 'number'))         ||
-                ((config.packet_size !== undefined)        && (typeof(config.packet_size) !== 'number'))        ||
-                ((config.ping_period !== undefined)        && (typeof(config.ping_period) !== 'number'))        ||
-                ((config.ping_interval !== undefined)      && (typeof(config.ping_count) !== 'number'))         ||
-                ((config.ping_count !== undefined)         && (typeof(config.ping_count) !== 'number'))         ||
-                ((config.peak_expiration !== undefined)    && (typeof(config.peak_expiration) !== 'number'))    ||
-                ((config.expected_nominal !== undefined)   && (typeof(config.expected_nominal) !== 'number'))   ||
-                ((config.expected_stdev !== undefined)     && (typeof(config.expected_stdev) !== 'number'))       ) {
+            if (                                                   (typeof(config) !== 'object')                          ||
+                ((config.target_type !== undefined)             && (typeof(config.target_type) !== 'string'))             ||
+                ((config.target_dest !== undefined)             && (typeof(config.target_dest) !== 'string'))             ||
+                ((config.loss_limit !== undefined)              && (typeof(config.loss_limit) !== 'number'))              ||
+                ((config.packet_size !== undefined)             && (typeof(config.packet_size) !== 'number'))             ||
+                ((config.ping_period !== undefined)             && (typeof(config.ping_period) !== 'number'))             ||
+                ((config.ping_interval !== undefined)           && (typeof(config.ping_count) !== 'number'))              ||
+                ((config.ping_count !== undefined)              && (typeof(config.ping_count) !== 'number'))              ||
+                ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
+                ((config.expected_nominal !== undefined)        && (typeof(config.expected_nominal) !== 'number'))        ||
+                ((config.expected_stdev !== undefined)          && (typeof(config.expected_stdev) !== 'number'))          ||
+                ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number'))   ) {
 
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
             }
@@ -213,6 +217,14 @@ export class NetworkTarget extends EventEmitter {
                     throw new RangeError(`config.expected_stdev is invalid: ${config.expected_stdev}`);
                 }
             }
+            if (config.data_filter_time_window) {
+                if (config.data_filter_time_window > pingPeriod) {
+                    dataFilterTime = config.data_filter_time_window;
+                }
+                else {
+                    dataFilterTime = pingPeriod;
+                }
+            }
         }
 
         // Initialize the base class.
@@ -227,7 +239,7 @@ export class NetworkTarget extends EventEmitter {
         this._ping_interval             = pingInterval;
         this._ping_period               = pingPeriod;
         this._peak_expiration           = peakExpirationTime;
-        this._data_buffer_size          = /* TODO */;
+        this._data_buffer_size          = Math.floor(dataFilterTime/pingPeriod);
         this._expected_nominal          = expectedNominal;
         this._expected_stdev            = expectedStDev;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
