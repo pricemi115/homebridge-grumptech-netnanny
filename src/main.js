@@ -49,7 +49,8 @@ import {
 
 // Internal dependencies
 import { NetworkTarget as _NetworkTarget,
-         PEAK_TYPES as _TARGET_PEAK_TYPES } from './networkTarget.js';
+         PEAK_TYPES as _TARGET_PEAK_TYPES,
+         DATA_BUFFER_TYPES as _TARGET_DATA_BUFFER_TYPES } from './networkTarget.js';
 
 // Configuration constants.
 const PLUGIN_NAME   = CONFIG_INFO.plugin;
@@ -60,9 +61,9 @@ const ACCESSORY_VERSION = 1;
 
 const SERVICE_INFO = {
     POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
-    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME},
-    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS}
+    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME,  data_buffer:_TARGET_DATA_BUFFER_TYPES.TIME},
+    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV, data_buffer:_TARGET_DATA_BUFFER_TYPES.STDEV},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,  data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS}
 }
 
 // Accessory must be created from PlatformAccessory Constructor
@@ -344,11 +345,16 @@ class NetworkPerformanceMonitorPlatform {
         if (this._accessories.has(id)) {
             const accessory = this._accessories.get(id);
             if (accessory !== undefined) {
+                // Get the buffer filled flags.
+                const timeBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.TIME.data_buffer);
+                const stdevBufferFilled = results.sender.IsBufferFilled(SERVICE_INFO.STDDEV.data_buffer);
+                const lossBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
+
                 // Compute the fault statuses
-                const threshold     = (3.0*results.sender.ExpectedStdDev);
-                const timeFault     = (results.error || (results.ping_time_ms > (results.sender.ExpectedNominal + threshold)));
-                const stdevFault    = (results.error || (results.ping_stdev > threshold));
-                const lossFault     = ((results.packet_loss > results.sender.TolerableLoss) ? true : false);
+                const threshold  = (3.0*results.sender.ExpectedStdDev);
+                const timeFault  = (results.error || (timeBufferFilled  && (results.ping_time_ms > (results.sender.ExpectedNominal + threshold))));
+                const stdevFault = (results.error || (stdevBufferFilled && (results.ping_stdev > results.sender.ExpectedStdDev)));
+                const lossFault  = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
 
                 // Determine if the peaks have expired.
                 const resetPeakTime     = results.sender.IsPeakExpired(SERVICE_INFO.TIME.peak);
@@ -567,10 +573,11 @@ class NetworkPerformanceMonitorPlatform {
         }
         if ((serviceInfo === undefined) ||
             (typeof(serviceInfo) != 'object') ||
-            (!serviceInfo.hasOwnProperty('uuid')  || (typeof(serviceInfo.uuid)  !== 'string') || (serviceInfo.uuid.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('name')  || (typeof(serviceInfo.name)  !== 'string') || (serviceInfo.name.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('udst')  || (typeof(serviceInfo.udst)  !== 'string') || (serviceInfo.udst.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('peak')  || (typeof(serviceInfo.peak)  !== 'string') || (serviceInfo.peak.length <= 0) )   )
+            (!serviceInfo.hasOwnProperty('uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) )  )
         {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
@@ -589,6 +596,8 @@ class NetworkPerformanceMonitorPlatform {
             try {
                 // Get the network performance target for this accessory
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
+
+                // Determine if the CO2 Level should be set to abnormal.
 
                 // Determine the fault code and CO2 Level
                 const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
