@@ -9,6 +9,7 @@ Change history for _homebridge-grumptech-netnanny_
 ### Fixes
 - Ensure that the buffers are full before issuing Carbon Dioxide alerts.
 - Theshold for detecting issues with the Ping Standard Deviation were three times higer than what was specified in the configuration.
+
 ## [1.0.0] - 2021-MAY-10
 ### What's new
 - Updated documentation
