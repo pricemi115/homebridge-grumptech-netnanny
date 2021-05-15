@@ -17,9 +17,13 @@ This plugin is best experienced when running as a module installed and managed b
      alt="homebridge-config-ui-x plugin settings screen for Net Nanny"
      style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
      width="15%">
-<img src="./assets/config-ui-x_configjson.png"
-     alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny"
+<img src="./assets/config-ui-x_configjson/Page_0001.png"
+     alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny (Page 1)"
      style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
+     width="31.5%">
+<img src="./assets/config-ui-x_configjson/Page_0002.png"
+     alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny (Page 2)"
+     style="padding:2px 2px 2px 2px; border:2px solid; margin:510px 0px 0px -643px;"
      width="31.5%">
 <br/>
 For details on the configuration settings, please refer to the _Configuration Settings_ section below.
@@ -56,11 +60,15 @@ If you would rather manually configure and run the plugin, you will find a sampl
 The plugin will create, or restore, a dynamic accessory for each network target specified in the comfiguration. Each accessory will advertise four services: (1) switch, and (3) carbon dioxide sensors. All of the data presented for the carbon dioxide sensors is the result of passing the ping results through a moving average. In an effort to keep outliers from affecting the reported values, a user-specified number of outliers will be excluded from the moving average computation. The outliners that are excluded alternate between the highest then lowest values until the number of values to exclude has been reached.
 
 - **Power**: A switch, with the name of the Target Destination, that controls the active state of the network performance target.
-- **Time**: The average ping time, in milliseconds. The peak value is also displayed.
-- **Standard Deviation**: The standard deviation of this ping results, in milliseconds. The peak value is also displayed.
-- **Packet Loss**: The packet loss, in percent. The peak value is also displayed.
+- **Time**: The average ping time, in milliseconds. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Nominal + (3 * Expected Standard Deviation)`
+- **Standard Deviation**: The standard deviation of this ping results, in milliseconds. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Standard Deviation`
+- **Packet Loss**: The packet loss, in percent. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Packet Loss Limit`
 
-When the current value for any of the carbon dioxide sensors exceeds the user-specified expected limits, the sensor’s alert will be set. When the value continues to exceed the limits beyond a user configurable threshold, the sensor’s _Detected_ value will be set to abnormal levels.
+When the current value for any of the carbon dioxide sensors exceeds the user-specified expected limits, the sensor’s alert will be set and, in addition, the sensor’s _Detected_ value will be set to abnormal levels. Setting the _Detected_ value to abnormal levels should result in am alert noticiation from HomeKit.
+
+Because the ping results can be noisy, the results are filtered using the [AVT (Antonyan Vardan Transform)](https://en.wikipedia.org/wiki/AVT_Statistical_filtering_algorithm) algorithm. The amount of data considered in the filter is implicitly set via the _Data Filter Time Window_ configuration parameter on each network target. The size of the data buffer is computed as the ratio _Data Filter Time Window_ to _Ping Period_. The larger this ratio, the more ping results that will be considered in the filter. The value reported by the filter is the _median_ value after excluding the data points that are beyond one standard deviation. Therefore, one can assume that the alerts will not be detected until at least half of the _Data Filter Time Window_ has elapsed with raw results that exceed the user specified limits. This should have the tendency to limit false positive detections. However, if the ratio is too small (not enough data in the buffer), then the reporting will be more responsive and alerts will be issued for transient _glitches_ in the network performance that do not necessarially indicate a systemic problem.
+
+It should also be noted, that the _Detected_ value will not be set to abnormal until the _Data Filter Time Window_ has elapsed after startup. This will prevent an occasional bad result from immediately resulting in the detection of abnormal carbon dioxide levels at startup.
 
 When the accessory is inactive, the _Active_ and _Low Battery Status_ are set.
 
