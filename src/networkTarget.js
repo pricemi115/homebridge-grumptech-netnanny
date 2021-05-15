@@ -52,7 +52,7 @@ export const PEAK_TYPES = {
 };
 
 /* Enumeration for data buffer types */
-const DATA_BUFFER_TYPES = {
+export const DATA_BUFFER_TYPES = {
     TIME       : 'data_time',
     STDEV      : 'data_stddev',
     LOSS       : 'data_packet_loss'
@@ -379,6 +379,28 @@ export class NetworkTarget extends EventEmitter {
     }
 
 /*  ========================================================================
+    Description: Determines if the specified data buffer is completely filled.
+
+    @param {enum:DATA_BUFFER_TYPES} [buffer_type] - Type of the data buffer being querried
+
+    @return {boolean} - true if the data buffer has been filled.
+
+    @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
+    ======================================================================== */
+    IsBufferFilled(buffer_type) {
+        // Validate arguments
+        if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
+            (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) < 0)) {
+            throw new TypeError(`buffer_type not a member of DATA_BUFFER_TYPES. ${buffer_type}`);
+        }
+
+        // Determine if the data buffer is filled.
+        const filled = (this._dataBuffers.get(buffer_type).length >= this._data_buffer_size);
+
+        return filled;
+    }
+
+/*  ========================================================================
     Description: Determines if the specified peak has expired.
 
     @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being querried
@@ -637,8 +659,8 @@ export class NetworkTarget extends EventEmitter {
     _computeStats(data) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||
-            (data.length <= 0)) {
-            throw new TypeError(`data is an array of numbers.`);
+            (data.length < 0)) {
+            throw new TypeError(`data is not an array of numbers.`);
         }
         for (const val of data) {
             if (typeof(val) !== 'number') {
@@ -681,6 +703,8 @@ export class NetworkTarget extends EventEmitter {
         const median = theData[medianIndex];
 
         const result = {mean:mean, stddev:std_dev, median:median, min:min, max:max, size:theData.length};
+        _debug(`Stats Report:`);
+        _debug(result);
 
         return result;
     }
