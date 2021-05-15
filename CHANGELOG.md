@@ -3,6 +3,12 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+## [1.2.0] - 2021-MAY-14
+### What's new
+- The moving average of ping results was replaced with filtering the data using the [AVT (Antonyan Vardan Transform)](https://en.wikipedia.org/wiki/AVT_Statistical_filtering_algorithm) algorithm.
+### Fixes
+- Ensure that the buffers are full before issuing Carbon Dioxide alerts.
+- Theshold for detecting issues with the Ping Standard Deviation were three times higer than what was specified in the configuration.
 ## [1.0.0] - 2021-MAY-10
 ### What's new
 - Updated documentation

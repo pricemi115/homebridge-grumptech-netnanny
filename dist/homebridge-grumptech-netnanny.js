@@ -799,7 +799,7 @@ const _debug$1    = require('debug')('network_target');
 _debug$1.log = console.log.bind(console);
 
 // Helpful constants and conversion factors.
-const DEFAULT_PERIOD_SEC            = 10.0;
+const DEFAULT_PERIOD_SEC            = 20.0;
 const DEFAULT_PING_COUNT            = 5;
 const MIN_PING_COUNT                = 3; // Need at least 3 to compute a standard deviation
 const DEFAULT_PING_INTERVAL         = 1;
@@ -813,12 +813,7 @@ const DEFAULT_PACKET_LOSS_LIMIT     = 5.0;
 const MIN_LOSS_LIMIT                = 0.0;
 const MAX_LOSS_LIMIT                = 100.0;
 const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
-const DEFAULT_ALERT_FACTOR          = 2;
-const DEFAULT_BUFFER_SIZE           = 10;
-const MINIMUM_BUFFER_SIZE           = 1;
-const DEFAULT_BUFFER_FILTER         = 0.2;
-const MINIMUM_DATA_FILTER           = 0.0;
-const MAXIMUM_DATA_FILTER           = 0.5;
+const DEFAULT_DATA_FILTER_TIME_SEC  = 180.0;
 
 /* Enumeration for target types */
 const TARGET_TYPES = {
@@ -834,13 +829,6 @@ const PEAK_TYPES = {
     TIME       : 'peak_time',
     STDEV      : 'peak_stddev',
     LOSS       : 'peak_packet_loss'
-};
-
-/* Enumeration for alarm threshold types */
-const ALERT_TYPES = {
-    TIME       : 'alert_time',
-    STDEV      : 'alert_stddev',
-    LOSS       : 'alert_packet_loss'
 };
 
 /* Enumeration for data buffer types */
@@ -874,10 +862,10 @@ class NetworkTarget extends EventEmitter {
     @param {number} [config.loss_lmit]        - *Optional* The percentage of lost packets that is tolerable.
     @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
     @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
-    @param {number} [config.alert_threshold]  - *Optional* The number of consecutive alerts/faults to tolerate.
     @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
     @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping time.
     @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
+    @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
 
     @return {object}  - Instance of the NetworkTarget class.
 
@@ -898,25 +886,21 @@ class NetworkTarget extends EventEmitter {
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
-        let dataBufferSize  = DEFAULT_BUFFER_SIZE;
-        let dataBufferFilter= DEFAULT_BUFFER_FILTER;
-        let alertFactor     = DEFAULT_ALERT_FACTOR;
+        let dataFilterTime  = DEFAULT_DATA_FILTER_TIME_SEC;
         // Check for expected types
         if (config !== undefined) {
-            if (                                            (typeof(config) !== 'object')                       ||
-                ((config.target_type !== undefined)        && (typeof(config.target_type) !== 'string'))        ||
-                ((config.target_dest !== undefined)        && (typeof(config.target_dest) !== 'string'))        ||
-                ((config.loss_limit !== undefined)         && (typeof(config.loss_limit) !== 'number'))         ||
-                ((config.packet_size !== undefined)        && (typeof(config.packet_size) !== 'number'))        ||
-                ((config.ping_period !== undefined)        && (typeof(config.ping_period) !== 'number'))        ||
-                ((config.ping_interval !== undefined)      && (typeof(config.ping_count) !== 'number'))         ||
-                ((config.ping_count !== undefined)         && (typeof(config.ping_count) !== 'number'))         ||
-                ((config.data_buffer_size !== undefined)   && (typeof(config.data_buffer_size) !== 'number'))   ||
-                ((config.data_buffer_filter !== undefined) && (typeof(config.data_buffer_filter) !== 'number')) ||
-                ((config.alert_threshold !== undefined)    && (typeof(config.alert_threshold) !== 'number'))    ||
-                ((config.peak_expiration !== undefined)    && (typeof(config.peak_expiration) !== 'number'))    ||
-                ((config.expected_nominal !== undefined)   && (typeof(config.expected_nominal) !== 'number'))   ||
-                ((config.expected_stdev !== undefined)     && (typeof(config.expected_stdev) !== 'number'))       ) {
+            if (                                                   (typeof(config) !== 'object')                          ||
+                ((config.target_type !== undefined)             && (typeof(config.target_type) !== 'string'))             ||
+                ((config.target_dest !== undefined)             && (typeof(config.target_dest) !== 'string'))             ||
+                ((config.loss_limit !== undefined)              && (typeof(config.loss_limit) !== 'number'))              ||
+                ((config.packet_size !== undefined)             && (typeof(config.packet_size) !== 'number'))             ||
+                ((config.ping_period !== undefined)             && (typeof(config.ping_period) !== 'number'))             ||
+                ((config.ping_interval !== undefined)           && (typeof(config.ping_count) !== 'number'))              ||
+                ((config.ping_count !== undefined)              && (typeof(config.ping_count) !== 'number'))              ||
+                ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
+                ((config.expected_nominal !== undefined)        && (typeof(config.expected_nominal) !== 'number'))        ||
+                ((config.expected_stdev !== undefined)          && (typeof(config.expected_stdev) !== 'number'))          ||
+                ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number'))   ) {
 
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
             }
@@ -997,32 +981,6 @@ class NetworkTarget extends EventEmitter {
                     throw new RangeError(`Ping expiration time is undefined or is less than the minimum. ${config.peak_expiration}`);
                 }
             }
-            if (config.data_buffer_size) {
-                if (config.data_buffer_size >= MINIMUM_BUFFER_SIZE) {
-                    dataBufferSize = config.data_buffer_size;
-                }
-                else {
-                    throw new RangeError(`Data Buffer Size is undefined or is less than the minimum. ${config.data_buffer_size}`);
-                }
-            }
-            if (config.data_buffer_filter) {
-                const candidateFilter = config.data_buffer_filter / 100.0;
-                if ((candidateFilter >= MINIMUM_DATA_FILTER) &&
-                    (candidateFilter <= MAXIMUM_DATA_FILTER))  {
-                    dataBufferFilter = candidateFilter;
-                }
-                else {
-                    throw new RangeError(`Data Buffer Filter Factor is undefined or is less than the minimum. ${config.data_buffer_filter}`);
-                }
-            }
-            if (config.alert_threshold) {
-                if (config.alert_threshold >= 0) {
-                    alertFactor = config.alert_threshold;
-                }
-                else {
-                    throw new RangeError(`Alert Threshold is undefined or is less than the minimum. ${config.alert_threshold}`);
-                }
-            }
             if (config.expected_nominal) {
                 if (config.expected_nominal > 0) {
                     expectedNominal = config.expected_nominal;
@@ -1039,6 +997,14 @@ class NetworkTarget extends EventEmitter {
                     throw new RangeError(`config.expected_stdev is invalid: ${config.expected_stdev}`);
                 }
             }
+            if (config.data_filter_time_window) {
+                if (config.data_filter_time_window > pingPeriod) {
+                    dataFilterTime = config.data_filter_time_window;
+                }
+                else {
+                    dataFilterTime = pingPeriod;
+                }
+            }
         }
 
         // Initialize the base class.
@@ -1053,9 +1019,7 @@ class NetworkTarget extends EventEmitter {
         this._ping_interval             = pingInterval;
         this._ping_period               = pingPeriod;
         this._peak_expiration           = peakExpirationTime;
-        this._data_buffer_size          = dataBufferSize;
-        this._data_elimination_count    = Math.floor(dataBufferFilter * dataBufferSize);
-        this._alert_threshold           = (alertFactor * this._data_buffer_size);
+        this._data_buffer_size          = Math.floor(dataFilterTime/pingPeriod);
         this._expected_nominal          = expectedNominal;
         this._expected_stdev            = expectedStDev;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
@@ -1068,11 +1032,6 @@ class NetworkTarget extends EventEmitter {
         this._peakTime = new Map([[PEAK_TYPES.TIME,  now],
                                   [PEAK_TYPES.STDEV, now],
                                   [PEAK_TYPES.LOSS,  now]]);
-        // Create a map of counters for tracking the number of consecutive failures.
-        // Used to know when to set an CO2 Detected alarm.
-        this._alertCount = new Map([[ALERT_TYPES.TIME,  0],
-                                    [ALERT_TYPES.STDEV, 0],
-                                    [ALERT_TYPES.LOSS,  0]]);
         // Create a map of data buffers for the numeric results.
         this._dataBuffers = new Map([[DATA_BUFFER_TYPES.TIME,  []],
                                      [DATA_BUFFER_TYPES.STDEV, []],
@@ -1200,6 +1159,28 @@ class NetworkTarget extends EventEmitter {
     }
 
 /*  ========================================================================
+    Description: Determines if the specified data buffer is completely filled.
+
+    @param {enum:DATA_BUFFER_TYPES} [buffer_type] - Type of the data buffer being querried
+
+    @return {boolean} - true if the data buffer has been filled.
+
+    @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
+    ======================================================================== */
+    IsBufferFilled(buffer_type) {
+        // Validate arguments
+        if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
+            (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) < 0)) {
+            throw new TypeError(`buffer_type not a member of DATA_BUFFER_TYPES. ${buffer_type}`);
+        }
+
+        // Determine if the data buffer is filled.
+        const filled = (this._dataBuffers.get(buffer_type).length >= this._data_buffer_size);
+
+        return filled;
+    }
+
+/*  ========================================================================
     Description: Determines if the specified peak has expired.
 
     @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being querried
@@ -1240,61 +1221,6 @@ class NetworkTarget extends EventEmitter {
 
         // Update the reference time for the specified peak.
         this._peakTime.set(peak_type, Date.now());
-    }
-
-/*  ========================================================================
-    Description: Determines if the specified alert threshold has been exceeded.
-
-    @param {enum:ALERT_TYPES} [alert_type] - Type of the alert threshold being querried
-
-    @return {boolean} - true if the alert threshold has been exceeded.
-
-    @throws {TypeError} - Thrown if 'alert_type' is not a ALERT_TYPES value.
-    ======================================================================== */
-    IsAlertThresholdExceeded(alert_type) {
-        // Validate arguments
-        if ((alert_type === undefined) || (typeof(alert_type) !== 'string') ||
-            (Object.values(ALERT_TYPES).indexOf(alert_type) < 0)) {
-            throw new TypeError(`alert_type not a member of ALERT_TYPES. ${alert_type}`);
-        }
-
-        // Has the specified alert exceeded its threshold?
-        const expired = (this._alertCount.get(alert_type) > this._alert_threshold);
-
-        return expired;
-    }
-
-/*  ========================================================================
-    Description: Update the count of alerts.
-
-    @param {enum:ALERT_TYPES} [alert_type] - Type of the alarm being managed.
-    @param {boolean}          [alert_reset]- Flag indicating if the alarm count should be reset.
-
-    @return {boolean}   - Flag indicating if the update resulted in the alarm exceeding the threshold.
-
-    @throws {TypeError} - Thrown if 'alert_type' is not a ALERT_TYPES value.
-    @throws {TypeError} - Thrown if 'alert_reset' is not a boolean value.
-    ======================================================================== */
-    UpdateAlert(alert_type, alert_reset) {
-        // Validate arguments
-        if ((alert_type === undefined) || (typeof(alert_type) !== 'string') ||
-            (Object.values(ALERT_TYPES).indexOf(alert_type) < 0)) {
-            throw new TypeError(`alarm_type not a member of ALERT_TYPES. ${alert_type}`);
-        }
-        if ((alert_reset === undefined) || (typeof(alert_reset) !== 'boolean')) {
-            throw new TypeError(`alarm_reset not a boolean. ${alert_reset}`);
-        }
-
-        // Fetermine the new value of the alarm count.
-        const alertCount = (alert_reset ? 0 : (this._alertCount.get(alert_type) + 1));
-
-        // Update the count.
-        this._alertCount.set(alert_type, alertCount);
-
-        // Determine if the alarm has now exceeded the threshold.
-        const exceeded = this.IsAlertThresholdExceeded(alert_type);
-
-        return exceeded;
     }
 
 /*  ========================================================================
@@ -1436,14 +1362,13 @@ class NetworkTarget extends EventEmitter {
         // Raise an event informing interested parties of the results.
         try {
             // Get the results
-            const time  = this._computeAverages(DATA_BUFFER_TYPES.TIME);
-            const stdev = this._computeAverages(DATA_BUFFER_TYPES.STDEV);
-            const loss  = this._computeAverages(DATA_BUFFER_TYPES.LOSS);
+            const time  = this._computeAVT(DATA_BUFFER_TYPES.TIME);
+            const stdev = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
+            const loss  = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
 
             this.emit('ready', {sender:this, error:err, packet_loss:loss, ping_time_ms:time, ping_stdev:stdev});
         }
         catch (e) {
-            console.log(`Error encountered raising 'ready' event. ${e}`);
             _debug$1(`Error encountered raising 'ready' event. ${e}`);
         }
 
@@ -1500,15 +1425,80 @@ class NetworkTarget extends EventEmitter {
     }
 
 /*  ========================================================================
-    Description:    Helper to compute the averages of the requested data buffer.
+    Description:    Helper to compute the statistics of the data provided
 
-    @param { buffer_type } [buffer_type]     - The requested buffer type for statistics.
+    @param { [number] } [data] - Array of numbers from which to compute the statistics.
 
-    @return {number} - average value of the requested databuffer. NAN if no data is present.
+    @return {object} - computed statistics
+    @retuen {object.mean} - average of the data
+    @return {object.median} - median of the data
+    @return {object.stddev} - standard deviation of the data
+
+    @throws {TypeError} - Thrown if 'data' is not an array of numbers.
+    ======================================================================== */
+    _computeStats(data) {
+        // Validate arguments
+        if ((data === undefined) || (!Array.isArray(data)) ||
+            (data.length < 0)) {
+            throw new TypeError(`data is not an array of numbers.`);
+        }
+        for (const val of data) {
+            if (typeof(val) !== 'number') {
+                throw new TypeError(`data contains non-numeric items.`);
+            }
+        }
+
+        // Make a deep copy of the buffer
+        let theData = [].concat(data);
+
+        // Sort the data in ascending order.
+        theData.sort((a, b) => a - b);
+
+        // Perform Welford’s method to compute the mean and variance
+        let mean = 0;
+        let s = 0;
+        let max = Number.NEGATIVE_INFINITY;
+        let min = Number.POSITIVE_INFINITY;
+        for (let index=0; index < theData.length; index++) {
+            const val = theData[index];
+            const lastMean = mean;
+
+            mean += ((val-mean)/(index+1));
+            s += ((val-mean)*(val-lastMean));
+
+            // Update the minimum and maximum as well.
+            if (val < min) {
+                min = val;
+            }
+            if (val > max) {
+                max = val;
+            }
+        }
+        // Compute the standard deviatiation
+        const std_dev = (theData.length > 1) ? (Math.sqrt(s/(theData.length-1))) : Number.NaN;
+
+        // Determine the median
+        // Note: Using Math.floor() biased us to not report false/premature issues/errors.
+        const medianIndex = Math.floor(theData.length/2);
+        const median = theData[medianIndex];
+
+        const result = {mean:mean, stddev:std_dev, median:median, min:min, max:max, size:theData.length};
+        _debug$1(`Stats Report:`);
+        _debug$1(result);
+
+        return result;
+    }
+
+/*  ========================================================================
+    Description:    Helper to compute the AVT (Antonyan Vardan Transform ) filter algotithm.
+
+    @param { string } [buffer_type] - The requested buffer type for statistics.
+
+    @return {number} - median value of the requested databuffer. NAN if no data is present.
 
     @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
     ======================================================================== */
-    _computeAverages(buffer_type) {
+    _computeAVT(buffer_type) {
         // Validate arguments
         if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
             (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) < 0)) {
@@ -1518,39 +1508,31 @@ class NetworkTarget extends EventEmitter {
         // Make a deep copy of the buffer
         let buffer = [].concat(this._dataBuffers.get(buffer_type));
 
-        // Sort the buffer in ascending order.
-        buffer.sort((a, b) => a - b);
+        // Compute the statistics of the data.
+        const stats = this._computeStats(buffer);
 
-        // Compute the number of elements to toss out in the filter.
-        for (let count=0; count < this._data_elimination_count; count++) {
-            if (buffer.length >= this._data_elimination_count) {
-                // Determine which side to toss from, alternating between largest and smallest.
-                if ((count %2) === 0) {
-                    // Toss the largest value.
-                    buffer.pop();
-                }
-                else {
-                    // for fairness, toss the smallest value.
-                    buffer.shift();
+        // Default to the median of the unfiltered stats.
+        let result = stats.median;
+
+        // Filter the data.
+        if (stats.stddev !== Number.NaN) {
+            // Compute the AVT bounds: median +/- stddev
+            const boundMin = stats.median - stats.stddev;
+            const boundMax = stats.median + stats.stddev;
+            let filteredData = [];
+            // Perform the AVT filter, excluding the outliers.
+            for (const val of buffer) {
+                if ((val >= boundMin) && (val <= boundMax)) {
+                    filteredData.push(val);
                 }
             }
-            else {
-                // Noting left to do. No need to continue looping, force exit condition.
-                count = this._data_elimination_count + 1;
-            }
+
+            // Determine the filtered result.
+            const filteredStats = this._computeStats(filteredData);
+            result = filteredStats.median;
         }
 
-        // Sum all the values remaining.
-        let sum = 0.0;
-        for (const val of buffer) {
-            sum += val;
-        }
-
-        // Compute the average
-        const size = buffer.length;
-        const avg  = ((size > 0) ? (sum/size) : Number.POSITIVE_INFINITY);
-
-        return avg;
+        return result;
     }
 }
 
@@ -1571,9 +1553,9 @@ const ACCESSORY_VERSION = 1;
 
 const SERVICE_INFO = {
     POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
-    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:PEAK_TYPES.TIME,  alert:ALERT_TYPES.TIME},
-    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:PEAK_TYPES.STDEV, alert:ALERT_TYPES.STDEV},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:PEAK_TYPES.LOSS,  alert:ALERT_TYPES.LOSS}
+    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:PEAK_TYPES.TIME,  data_buffer:DATA_BUFFER_TYPES.TIME},
+    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:PEAK_TYPES.STDEV, data_buffer:DATA_BUFFER_TYPES.STDEV},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:PEAK_TYPES.LOSS,  data_buffer:DATA_BUFFER_TYPES.LOSS}
 };
 
 // Accessory must be created from PlatformAccessory Constructor
@@ -1712,17 +1694,9 @@ class NetworkPerformanceMonitorPlatform {
                         if ((itemConfig.hasOwnProperty('peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
                             targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
-                        /* Get the data buffer size */
-                        if ((itemConfig.hasOwnProperty('data_buffer_size')) && (typeof(itemConfig.data_buffer_size) === 'number')) {
-                            targetConfig.data_buffer_size = itemConfig.data_buffer_size;
-                        }
-                        /* Get the data buffer filter factor */
-                        if ((itemConfig.hasOwnProperty('data_buffer_filter')) && (typeof(itemConfig.data_buffer_filter) === 'number')) {
-                            targetConfig.data_buffer_filter = itemConfig.data_buffer_filter;
-                        }
-                        /* Get the alert threshold factor */
-                        if ((itemConfig.hasOwnProperty('alert_threshold')) && (typeof(itemConfig.alert_threshold) === 'number')) {
-                            targetConfig.alert_threshold = itemConfig.alert_threshold;
+                        /* Get the data filter time window (sec) */
+                        if ((itemConfig.hasOwnProperty('data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
+                            targetConfig.data_filter_time_window = itemConfig.data_filter_time_window;
                         }
 
                         /* Create the network target. */
@@ -1859,11 +1833,16 @@ class NetworkPerformanceMonitorPlatform {
         if (this._accessories.has(id)) {
             const accessory = this._accessories.get(id);
             if (accessory !== undefined) {
+                // Get the buffer filled flags.
+                const timeBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.TIME.data_buffer);
+                const stdevBufferFilled = results.sender.IsBufferFilled(SERVICE_INFO.STDDEV.data_buffer);
+                const lossBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
+
                 // Compute the fault statuses
-                const threshold     = (3.0*results.sender.ExpectedStdDev);
-                const timeFault     = (results.error || (results.ping_time_ms > (results.sender.ExpectedNominal + threshold)));
-                const stdevFault    = (results.error || (results.ping_stdev > threshold));
-                const lossFault     = ((results.packet_loss > results.sender.TolerableLoss) ? true : false);
+                const threshold  = (3.0*results.sender.ExpectedStdDev);
+                const timeFault  = (results.error || (timeBufferFilled  && (results.ping_time_ms > (results.sender.ExpectedNominal + threshold))));
+                const stdevFault = (results.error || (stdevBufferFilled && (results.ping_stdev > results.sender.ExpectedStdDev)));
+                const lossFault  = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
 
                 // Determine if the peaks have expired.
                 const resetPeakTime     = results.sender.IsPeakExpired(SERVICE_INFO.TIME.peak);
@@ -2082,11 +2061,11 @@ class NetworkPerformanceMonitorPlatform {
         }
         if ((serviceInfo === undefined) ||
             (typeof(serviceInfo) != 'object') ||
-            (!serviceInfo.hasOwnProperty('uuid')  || (typeof(serviceInfo.uuid)  !== 'string') || (serviceInfo.uuid.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('name')  || (typeof(serviceInfo.name)  !== 'string') || (serviceInfo.name.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('udst')  || (typeof(serviceInfo.udst)  !== 'string') || (serviceInfo.udst.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('peak')  || (typeof(serviceInfo.peak)  !== 'string') || (serviceInfo.peak.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('alert') || (typeof(serviceInfo.alert) !== 'string') || (serviceInfo.alert.length <= 0) )   )
+            (!serviceInfo.hasOwnProperty('uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0) )       ||
+            (!serviceInfo.hasOwnProperty('data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) )  )
         {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
@@ -2106,12 +2085,11 @@ class NetworkPerformanceMonitorPlatform {
                 // Get the network performance target for this accessory
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
 
-                // Manage the alert count on the target.
-                const alertThresholdExceeded = target.UpdateAlert(serviceInfo.alert, (!values.fault));
+                // Determine if the CO2 Level should be set to abnormal.
 
                 // Determine the fault code and CO2 Level
-                const faultCode = (values.fault             ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
-                const co2Level  = (alertThresholdExceeded   ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
+                const co2Level  = (values.fault ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, co2Level);
