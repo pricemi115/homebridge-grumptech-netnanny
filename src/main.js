@@ -50,7 +50,8 @@ import {
 // Internal dependencies
 import { NetworkTarget as _NetworkTarget,
          PEAK_TYPES as _TARGET_PEAK_TYPES,
-         DATA_BUFFER_TYPES as _TARGET_DATA_BUFFER_TYPES } from './networkTarget.js';
+         DATA_BUFFER_TYPES as _TARGET_DATA_BUFFER_TYPES,
+         ALERT_BITMASK as _TARGET_ALERT_BITMASK } from './networkTarget.js';
 
 // Configuration constants.
 const PLUGIN_NAME   = CONFIG_INFO.plugin;
@@ -61,9 +62,9 @@ const ACCESSORY_VERSION = 1;
 
 const SERVICE_INFO = {
     POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
-    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME,  data_buffer:_TARGET_DATA_BUFFER_TYPES.TIME},
-    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV, data_buffer:_TARGET_DATA_BUFFER_TYPES.STDEV},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,  data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS}
+    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME,  data_buffer:_TARGET_DATA_BUFFER_TYPES.TIME,  alert_mask: _TARGET_ALERT_BITMASK.TIME},
+    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV, data_buffer:_TARGET_DATA_BUFFER_TYPES.STDEV, alert_mask: _TARGET_ALERT_BITMASK.STDEV},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,  data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,  alert_mask: _TARGET_ALERT_BITMASK.LOSS}
 }
 
 // Accessory must be created from PlatformAccessory Constructor
@@ -205,6 +206,10 @@ class NetworkPerformanceMonitorPlatform {
                         /* Get the data filter time window (sec) */
                         if ((itemConfig.hasOwnProperty('data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
                             targetConfig.data_filter_time_window = itemConfig.data_filter_time_window;
+                        }
+                        /* Get the sensor alert mask */
+                        if ((itemConfig.hasOwnProperty('sensor_alert_mask')) && (typeof(itemConfig.sensor_alert_mask) === 'number')) {
+                            targetConfig.alert_mask = itemConfig.sensor_alert_mask;
                         }
 
                         /* Create the network target. */
@@ -573,11 +578,12 @@ class NetworkPerformanceMonitorPlatform {
         }
         if ((serviceInfo === undefined) ||
             (typeof(serviceInfo) != 'object') ||
-            (!serviceInfo.hasOwnProperty('uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0) )       ||
-            (!serviceInfo.hasOwnProperty('name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0) )       ||
-            (!serviceInfo.hasOwnProperty('udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0) )       ||
-            (!serviceInfo.hasOwnProperty('peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0) )       ||
-            (!serviceInfo.hasOwnProperty('data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) )  )
+            (!serviceInfo.hasOwnProperty('uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0)        ) ||
+            (!serviceInfo.hasOwnProperty('name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0)        ) ||
+            (!serviceInfo.hasOwnProperty('udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0)        ) ||
+            (!serviceInfo.hasOwnProperty('peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0)        ) ||
+            (!serviceInfo.hasOwnProperty('data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) ) ||
+            (!serviceInfo.hasOwnProperty('alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   )
         {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
@@ -597,11 +603,9 @@ class NetworkPerformanceMonitorPlatform {
                 // Get the network performance target for this accessory
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
 
-                // Determine if the CO2 Level should be set to abnormal.
-
                 // Determine the fault code and CO2 Level
-                const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
-                const co2Level  = (values.fault ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                const faultCode = (values.fault                                                   ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
+                const co2Level  = ((target.IsAlertActive(serviceInfo.alert_mask) && values.fault) ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, co2Level);

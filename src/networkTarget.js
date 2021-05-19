@@ -57,6 +57,16 @@ export const DATA_BUFFER_TYPES = {
     STDEV      : 'data_stddev',
     LOSS       : 'data_packet_loss'
 };
+
+/* Enumeration for Alert Types (Bitmask) */
+export const ALERT_BITMASK = {
+    NONE  : 0,
+    TIME  : 1,
+    LOSS  : 2,
+    STDEV : 4,
+    ALL   : 7
+};
+
 /* ==========================================================================
    Class:              NetworkTarget
    Description:	       Monitors network performance via ping.
@@ -86,6 +96,7 @@ export class NetworkTarget extends EventEmitter {
     @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping time.
     @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
     @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
+    @param {number} [config.sensor_alert_mask] - *Optional* The mask indicating which CO2 sensor alerts are active.
 
     @return {object}  - Instance of the NetworkTarget class.
 
@@ -107,6 +118,7 @@ export class NetworkTarget extends EventEmitter {
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
         let dataFilterTime  = DEFAULT_DATA_FILTER_TIME_SEC;
+        let alertBitmask    = ALERT_BITMASK.ALL;
         // Check for expected types
         if (config !== undefined) {
             if (                                                   (typeof(config) !== 'object')                          ||
@@ -120,8 +132,8 @@ export class NetworkTarget extends EventEmitter {
                 ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
                 ((config.expected_nominal !== undefined)        && (typeof(config.expected_nominal) !== 'number'))        ||
                 ((config.expected_stdev !== undefined)          && (typeof(config.expected_stdev) !== 'number'))          ||
-                ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number'))   ) {
-
+                ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number')) ||
+                ((config.alert_mask !== undefined)              && (typeof(config.alert_mask) !== 'number'))                ) {
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
             }
             // Check for expected values.
@@ -225,6 +237,14 @@ export class NetworkTarget extends EventEmitter {
                     dataFilterTime = pingPeriod;
                 }
             }
+            if (config.alert_mask) {
+                if ((config.alert_mask >= ALERT_BITMASK.NONE) && (config.alert_mask <= ALERT_BITMASK.ALL)) {
+                    alertBitmask = config.alert_mask;
+                }
+                else {
+                    throw new RangeError(`config.alert_mask is invalid: ${config.alert_mask}`);
+                }
+            }
         }
 
         // Initialize the base class.
@@ -242,6 +262,7 @@ export class NetworkTarget extends EventEmitter {
         this._data_buffer_size          = Math.floor(dataFilterTime/pingPeriod);
         this._expected_nominal          = expectedNominal;
         this._expected_stdev            = expectedStDev;
+        this._alertMask                 = alertBitmask;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
         this._pingInProgress            = false;
         this._destination_pending       = false;
@@ -441,6 +462,28 @@ export class NetworkTarget extends EventEmitter {
 
         // Update the reference time for the specified peak.
         this._peakTime.set(peak_type, Date.now());
+    }
+
+/*  ========================================================================
+    Description: Determines if the specified peak has expired.
+
+    @param {enum:ALERT_BITMASK} [alert_mask] - Bitmask of the alerts being checked
+
+    @return {boolean} - true if all of the alerts specified in 'alert_mask' is/are active
+
+    @throws {TypeError} - Thrown if 'alert_mask' is not a ALERT_BITMASK value.
+    ======================================================================== */
+    IsAlertActive(alert_mask) {
+        // Validate arguments
+        if ((alert_mask === undefined) || (typeof(alert_mask) !== 'number') ||
+            (Object.values(ALERT_BITMASK).indexOf(alert_mask) < 0)) {
+            throw new TypeError(`alert_mask not a member of ALERT_BITMASK. ${alert_mask}`);
+        }
+
+        // Determine is the alert(s) is(are) active.
+        const active = ((alert_mask & this._alertMask) === alert_mask);
+
+        return active;
     }
 
 /*  ========================================================================

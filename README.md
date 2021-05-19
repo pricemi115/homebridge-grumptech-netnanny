@@ -3,6 +3,8 @@
 [Homebridge Net Nanny](https://github.com/pricemi115/homebridge-grumptech-netnanny), by [GrumpTech](https://github.com/pricemi115/), is a [Homebridge](https://homebridge.io) dynamic platform plug-in that publishes metrics measuring the health of a network.
 This plugin was inspired by [Dave Hamilton's](https://twitter.com/DaveHamilton), of [the Mac Observer](https://www.macobserver.com), 3-Ping strategy for evaluating network health.
 
+## Change Log
+The change history can be viewed [here](./CHANGELOG.md)
 ## Installation
 
 This plug-in is intended to be used with the [homebridge-config-ui-x](https://www.npmjs.com/package/homebridge-config-ui-x) homebridge management tool. If using _homebridge-config-ui-x_, simply search for _homebridge-grumptech-netnanny_ for installation, plug-in management, and configuration.
@@ -52,6 +54,7 @@ Additionally, especially if this system will be running other homebridge modules
 | Expected Standard Deviation | The expected standard deviation for the set of ping requests. | ping_targets:items:expected_stdev | Per Target | Number | Time:milliseconds | 1 | >0 | N/A ||
 | Peak Expiration Time | The time, in hours, used to reset the peak values. | ping_targets:items:peak_expiration | Per Target | Number | Time:hours | 12 | 0 | N/A ||
 | Data Filter Time Window | The time, in seconds, over which to filter the ping results. | data_filter_time_window | Per Target | Number | Time:seconds | 180 | 6 | N/A | Values less than the 'Ping Period' will be ignored. |
+| Sensor Alert | Indicates which of the Carbon Dioxide sensors issue CO2 aleets when the data exceeds specified limits. | sensor_alert_mask | Number | Bitmask | 7 | 0 | 7 | Bit#0:Time, Bit#1:Packet Loss; Bit#2:Standard Deviation |
 
 ### Manual Configuration
 If you would rather manually configure and run the plugin, you will find a sample _config.json_ file in the `./config` folder. It is left to the user to get the plugin up and running within homebridge. Refer to the section above for specifics on the configuration parameters.
@@ -64,7 +67,7 @@ The plugin will create, or restore, a dynamic accessory for each network target 
 - **Standard Deviation**: The standard deviation of this ping results, in milliseconds. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Standard Deviation`
 - **Packet Loss**: The packet loss, in percent. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Packet Loss Limit`
 
-When the current value for any of the carbon dioxide sensors exceeds the user-specified expected limits, the sensor’s alert will be set and, in addition, the sensor’s _Detected_ value will be set to abnormal levels. Setting the _Detected_ value to abnormal levels should result in am alert noticiation from HomeKit.
+When the current value for any of the carbon dioxide sensors exceeds the user-specified expected limits, the sensor’s alert will be set and, in addition, the sensor’s _Detected_ value will be set to abnormal levels, if configured. Each Carbon Dioxide sensor can be configured to not set the _Detected_ value to abnormal when a fault is encountered. Setting the _Detected_ value to abnormal levels should result in am alert noticiation from HomeKit.
 
 Because the ping results can be noisy, the results are filtered using the [AVT (Antonyan Vardan Transform)](https://en.wikipedia.org/wiki/AVT_Statistical_filtering_algorithm) algorithm. The amount of data considered in the filter is implicitly set via the _Data Filter Time Window_ configuration parameter on each network target. The size of the data buffer is computed as the ratio _Data Filter Time Window_ to _Ping Period_. The larger this ratio, the more ping results that will be considered in the filter. The value reported by the filter is the _median_ value after excluding the data points that are beyond one standard deviation. Therefore, one can assume that the alerts will not be detected until at least half of the _Data Filter Time Window_ has elapsed with raw results that exceed the user specified limits. This should have the tendency to limit false positive detections. However, if the ratio is too small (not enough data in the buffer), then the reporting will be more responsive and alerts will be issued for transient _glitches_ in the network performance that do not necessarially indicate a systemic problem.
 
