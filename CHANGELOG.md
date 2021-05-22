@@ -3,6 +3,10 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+## [1.3.0] - 2021-MAY-19
+### What's new
+- [Issue #12](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/12): Added a mechanism to specify which Carbon Dioxise senors issue _carbond dioxide detected_ alerts when a fault is detected.
+
 ## [1.2.0] - 2021-MAY-14
 ### What's new
 - The moving average of ping results was replaced with filtering the data using the [AVT (Antonyan Vardan Transform)](https://en.wikipedia.org/wiki/AVT_Statistical_filtering_algorithm) algorithm.
