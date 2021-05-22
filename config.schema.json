@@ -119,14 +119,14 @@
                                     "minimum": 0,
                                     "maximum": 7,
                                     "oneOf": [
+                                        { "title": "All", "enum": [7] },
                                         { "title": "None", "enum": [0] },
                                         { "title": "Time Only", "enum": [1] },
+                                        { "title": "Standard Deviation Only", "enum": [4] },
                                         { "title": "Packet Loss Only", "enum": [2] },
                                         { "title": "Time and Packet Loss", "enum": [3] },
-                                        { "title": "Standard Deviation Only", "enum": [4] },
                                         { "title": "Time and Standard Deviation", "enum": [5] },
-                                        { "title": "Packet Loss and Standard Deviation", "enum": [6] },
-                                        { "title": "All", "enum": [7] }
+                                        { "title": "Packet Loss and Standard Deviation", "enum": [6] }
                                     ],
                                     "required": true
                                 }

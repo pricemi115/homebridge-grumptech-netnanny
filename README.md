@@ -54,7 +54,7 @@ Additionally, especially if this system will be running other homebridge modules
 | Expected Standard Deviation | The expected standard deviation for the set of ping requests. | ping_targets:items:expected_stdev | Per Target | Number | Time:milliseconds | 1 | >0 | N/A ||
 | Peak Expiration Time | The time, in hours, used to reset the peak values. | ping_targets:items:peak_expiration | Per Target | Number | Time:hours | 12 | 0 | N/A ||
 | Data Filter Time Window | The time, in seconds, over which to filter the ping results. | data_filter_time_window | Per Target | Number | Time:seconds | 180 | 6 | N/A | Values less than the 'Ping Period' will be ignored. |
-| Sensor Alert | Indicates which of the Carbon Dioxide sensors issue CO2 aleets when the data exceeds specified limits. | sensor_alert_mask | Number | Bitmask | 7 | 0 | 7 | Bit#0:Time, Bit#1:Packet Loss; Bit#2:Standard Deviation |
+| Sensor Alert | Indicates which of the Carbon Dioxide sensors issue CO2 aleets when the data exceeds specified limits. | sensor_alert_mask | Per Target | Number | Bitmask | 7 | 0 | 7 | Bit#0:Time, Bit#1:Packet Loss; Bit#2:Standard Deviation |
 
 ### Manual Configuration
 If you would rather manually configure and run the plugin, you will find a sample _config.json_ file in the `./config` folder. It is left to the user to get the plugin up and running within homebridge. Refer to the section above for specifics on the configuration parameters.
