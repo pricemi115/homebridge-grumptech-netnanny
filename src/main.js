@@ -279,12 +279,18 @@ class NetworkPerformanceMonitorPlatform {
         else {
             this._log(`Homebridge Plug-In ${PLATFORM_NAME} has finished launching.`);
 
-            // Flush any accessories that are not from this version
+            // Flush any accessories that are not from this version or are orphans (no corresponding network performance target).
             const accessoriesToRemove = [];
             for (const accessory of this._accessories.values()) {
                 if (!accessory.context.hasOwnProperty('VERSION') ||
                     (accessory.context.VERSION !== ACCESSORY_VERSION)) {
                     this._log(`Accessory ${accessory.displayName} has accessory version ${accessory.context.VERSION}. Version ${ACCESSORY_VERSION} is expected.`);
+                    // This accessory needs to be replaced.
+                    accessoriesToRemove.push(accessory);
+                }
+                else if (!this._networkPerformanceTargets.has(accessory.context.ID)) {
+                    // Orphan accessory
+                    this._log(`Accessory ${accessory.displayName} is an orphan and should be purged.`);
                     // This accessory needs to be replaced.
                     accessoriesToRemove.push(accessory);
                 }
