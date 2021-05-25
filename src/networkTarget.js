@@ -494,6 +494,9 @@ export class NetworkTarget extends EventEmitter {
         // Stop the interrogation in case it is running.
         this.Stop();
 
+        // Reset the internal data
+        this._reset();
+
         // Perform a check now.
         this._on_initiateCheck();
     }
@@ -504,6 +507,20 @@ export class NetworkTarget extends EventEmitter {
     Stop() {
         if (this._timeoutID !== INVALID_TIMEOUT_ID) {
             clearTimeout(this._timeoutID);
+        }
+    }
+
+/*  ========================================================================
+    Description: Helper to reset the raw data buffers and the peak data
+    ======================================================================== */
+    _reset() {
+        // Flush the data buffers.
+        for (const dataBufferKey of this._dataBuffers.keys()) {
+            do {/*nothing*/} while (typeof(this._dataBuffers.get(dataBufferKey).shift()) !== 'undefined');
+        }
+        // Reset the peaks
+        for (const peakKey of this._peakTime.keys()) {
+            this._peakTime.set(peakKey, Date.now());
         }
     }
 
