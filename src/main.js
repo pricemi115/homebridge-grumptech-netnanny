@@ -474,7 +474,7 @@ class NetworkPerformanceMonitorPlatform {
         }
         catch (error) {
             this._log.debug(`Error when configuring accessory.`);
-            console.log(error);
+            this._log.debug(error);
         }
 
         this._api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
