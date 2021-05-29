@@ -5,6 +5,10 @@ This plugin was inspired by [Dave Hamilton's](https://twitter.com/DaveHamilton),
 
 ## Change Log
 The change history can be viewed [here](./CHANGELOG.md)
+
+## Security Policy
+Please refer to our [security policy](./SECURITY.md) for information on which versions are receiving security updates and how to report security vulnerabilities.
+
 ## Installation
 
 This plug-in is intended to be used with the [homebridge-config-ui-x](https://www.npmjs.com/package/homebridge-config-ui-x) homebridge management tool. If using _homebridge-config-ui-x_, simply search for _homebridge-grumptech-netnanny_ for installation, plug-in management, and configuration.
