@@ -4,6 +4,28 @@ Object.defineProperty(exports, '__esModule', { value: true });
 
 var modCrypto = require('crypto');
 
+function _interopNamespace(e) {
+  if (e && e.__esModule) return e;
+  var n = Object.create(null);
+  if (e) {
+    Object.keys(e).forEach(function (k) {
+      if (k !== 'default') {
+        var d = Object.getOwnPropertyDescriptor(e, k);
+        Object.defineProperty(n, k, d.get ? d : {
+          enumerable: true,
+          get: function () {
+            return e[k];
+          }
+        });
+      }
+    });
+  }
+  n['default'] = e;
+  return Object.freeze(n);
+}
+
+var modCrypto__namespace = /*#__PURE__*/_interopNamespace(modCrypto);
+
 var config_info = {
 	remarks: [
 		"The 'plugin' and 'platform' names MUST match the names called out in the 'platforms' section of the active config.json file.",
@@ -1081,7 +1103,7 @@ class NetworkTarget extends EventEmitter {
         }
 
         // Create an identifier based on the target type & destination.
-        const hash = modCrypto.createHash('sha256');
+        const hash = modCrypto__namespace.createHash('sha256');
         hash.update(this._target_type);
         hash.update(this._target_dest);
         this._id = hash.digest('hex');
@@ -1793,6 +1815,8 @@ class NetworkPerformanceMonitorPlatform {
         // Is there an indication that the system is either exiting or needs to
         // be cleaned up?
         if ((options.exit) || (options.cleanup)) ;
+        // Lastly eliminate myself.
+        delete this;
     }
 
  /* ========================================================================
