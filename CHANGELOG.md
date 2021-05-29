@@ -4,6 +4,15 @@ Change history for _homebridge-grumptech-netnanny_
 ---
 ---
 
+## [1.3.2] - 2021-MAY-29
+### What's new
+- Publish a policy regarding what versions receive updates for security vulnerabilities and how to report vulnerabilities.
+
+### Fixes
+- [Issue #11](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/11): Clear data buffers when activating an accessory.
+- [Issue #15](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/15): Detect and clear orphaned accessories.
+- [Issue #16](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/16): Fix documentation of the sensor alert mask.
+- Update dependencies to resolve security vulnerability CVE-2021-23386.
 ## [1.3.1] - 2021-MAY-21
 ### Fixes
 - Silly typos in the change log for v1.3.0

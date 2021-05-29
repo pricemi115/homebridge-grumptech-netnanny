@@ -1274,6 +1274,9 @@ class NetworkTarget extends EventEmitter {
         // Stop the interrogation in case it is running.
         this.Stop();
 
+        // Reset the internal data
+        this._reset();
+
         // Perform a check now.
         this._on_initiateCheck();
     }
@@ -1284,6 +1287,20 @@ class NetworkTarget extends EventEmitter {
     Stop() {
         if (this._timeoutID !== INVALID_TIMEOUT_ID) {
             clearTimeout(this._timeoutID);
+        }
+    }
+
+/*  ========================================================================
+    Description: Helper to reset the raw data buffers and the peak data
+    ======================================================================== */
+    _reset() {
+        // Flush the data buffers.
+        for (const dataBufferKey of this._dataBuffers.keys()) {
+            do {/*nothing*/} while (typeof(this._dataBuffers.get(dataBufferKey).shift()) !== 'undefined');
+        }
+        // Reset the peaks
+        for (const peakKey of this._peakTime.keys()) {
+            this._peakTime.set(peakKey, Date.now());
         }
     }
 
@@ -1809,12 +1826,18 @@ class NetworkPerformanceMonitorPlatform {
         else {
             this._log(`Homebridge Plug-In ${PLATFORM_NAME} has finished launching.`);
 
-            // Flush any accessories that are not from this version
+            // Flush any accessories that are not from this version or are orphans (no corresponding network performance target).
             const accessoriesToRemove = [];
             for (const accessory of this._accessories.values()) {
                 if (!accessory.context.hasOwnProperty('VERSION') ||
                     (accessory.context.VERSION !== ACCESSORY_VERSION)) {
                     this._log(`Accessory ${accessory.displayName} has accessory version ${accessory.context.VERSION}. Version ${ACCESSORY_VERSION} is expected.`);
+                    // This accessory needs to be replaced.
+                    accessoriesToRemove.push(accessory);
+                }
+                else if (!this._networkPerformanceTargets.has(accessory.context.ID)) {
+                    // Orphan accessory
+                    this._log(`Accessory ${accessory.displayName} is an orphan and should be purged.`);
                     // This accessory needs to be replaced.
                     accessoriesToRemove.push(accessory);
                 }
@@ -1998,7 +2021,7 @@ class NetworkPerformanceMonitorPlatform {
         }
         catch (error) {
             this._log.debug(`Error when configuring accessory.`);
-            console.log(error);
+            this._log.debug(error);
         }
 
         this._api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
