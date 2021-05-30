@@ -69,7 +69,7 @@ export class SpawnHelper extends EventEmitter {
     get IsPending() {
         return ( this._pending );
     }
- 
+
  /* ========================================================================
     Description: Read-Only Property accessor to read the valid flag for this
                  item.
@@ -77,7 +77,7 @@ export class SpawnHelper extends EventEmitter {
     @return {bool} - true if processing completed successfully.
     ======================================================================== */
     get IsValid() {
-        return ( (this._command !== undefined) && 
+        return ( (this._command !== undefined) &&
                  !this.IsPending && !this._error_encountered );
     }
 
@@ -85,7 +85,7 @@ export class SpawnHelper extends EventEmitter {
     Description: Read-Only Property accessor to read the result data for this
                  item.
 
-    @return {<Buffer>} - Data collected from the spawn process. 
+    @return {<Buffer>} - Data collected from the spawn process.
                          Unreliable and/or undefined if processing was not successful.
     ======================================================================== */
     get Result() {
@@ -96,7 +96,7 @@ export class SpawnHelper extends EventEmitter {
     Description: Read-Only Property accessor to read the error data for this
                  item.
 
-    @return {<Buffer>} - Error data collected from the spawn process. 
+    @return {<Buffer>} - Error data collected from the spawn process.
                          Unreliable and/or undefined if processing completed successfully.
     ======================================================================== */
     get Error() {
@@ -143,7 +143,7 @@ export class SpawnHelper extends EventEmitter {
 
     @return {bool}  - true if child process is spawned
 
-    @throws {TypeError}  - arguments are not of the expected type. 
+    @throws {TypeError}  - arguments are not of the expected type.
     @throws {Error}      - Spawn invoked when an existing spawn is still pending.
     ======================================================================== */
     Spawn(request) {
@@ -158,7 +158,7 @@ export class SpawnHelper extends EventEmitter {
             throw new TypeError('request must be an obkect');
         }
         // Validate 'required' command request.
-        if ( (!request.hasOwnProperty('command'))   ||
+        if ( (!Object.prototype.hasOwnProperty.call(request, 'command'))   ||
              (typeof(request.command) !== 'string') ||
              (request.command.length <= 0)            ) {
             throw new TypeError('request.command must be a non-zero length string.');
@@ -167,7 +167,7 @@ export class SpawnHelper extends EventEmitter {
         this._command = request.command;
 
         // Validate 'optional' arguments request
-        if (request.hasOwnProperty('arguments')) {
+        if (Object.prototype.hasOwnProperty.call(request, 'arguments')) {
             if (!Array.isArray(request.arguments)) {
                 throw new TypeError('request.arguments must be an array of strings.');
             }
@@ -187,7 +187,7 @@ export class SpawnHelper extends EventEmitter {
         }
 
         // Validate 'optional' options request
-        if (request.hasOwnProperty('options')) {
+        if (Object.prototype.hasOwnProperty.call(request, 'options')) {
             if (!Array.isArray(request.options)) {
                 throw new TypeError('request.options must be an array of strings.');
             }
@@ -221,7 +221,7 @@ export class SpawnHelper extends EventEmitter {
         // Register for the message notification
         childProcess.on('message', this._CB_process_message);
         // Register for the error notification
-        childProcess.on('error', this._CB_process_error );        
+        childProcess.on('error', this._CB_process_error );
         // Register for the close notification
         childProcess.on('close', this._CB_process_close);
     }
@@ -267,6 +267,7 @@ export class SpawnHelper extends EventEmitter {
     @param { <Object> } [message]      - A parsed JSON object or primitive value.
     @param { <Handle> } [sendHandle]   - Handle
     ======================================================================== */
+    // eslint-disable-next-line no-unused-vars
     _process_message(message, sendHandle) {
         // TODO: Not sure if I need this.
         _debug(`Child Process for ${this.Command}: '${message}'`);
@@ -279,7 +280,7 @@ export class SpawnHelper extends EventEmitter {
     ======================================================================== */
     _process_error(error) {
         // Log the error info.
-        _debug(`Child Process for ${this.Command}: error_num:${errror.number} error_name:${error.name} error_msg:${error.message}`);
+        _debug(`Child Process for ${this.Command}: error_num:${error.number} error_name:${error.name} error_msg:${error.message}`);
 
         // Ensure that the error is recorded.
         this._error_encountered = true;
@@ -289,7 +290,7 @@ export class SpawnHelper extends EventEmitter {
     Description:    Event handler for the Child Process Close Notification
 
     @param { <number> } [code]   - The exit code if the child exited on its own.
-    @param { <string> } [signal] - The signal by which the child process was terminated. 
+    @param { <string> } [signal] - The signal by which the child process was terminated.
     ======================================================================== */
     _process_close(code, signal) {
         // Log the close info.
@@ -302,5 +303,5 @@ export class SpawnHelper extends EventEmitter {
         const isValid = this.IsValid;
         const response = {valid:isValid, result:(isValid ? this.Result : this.Error), source:this};
         this.emit('complete', response);
-    }   
+    }
 }
