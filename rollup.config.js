@@ -2,7 +2,7 @@ import nodePolyfills  from 'rollup-plugin-node-polyfills';
 import json           from '@rollup/plugin-json';
 
 export default {
-  external: ['homebridge', 'crypto'],
+  external: ['homebridge', 'crypto', 'validator'],
   input: 'src/main.js',
   output: [
     {
