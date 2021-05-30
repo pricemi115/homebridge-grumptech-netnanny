@@ -44,7 +44,7 @@
         "ping_interval": 1,
         "ping_count": 5,
         "packet_size": 56
-    },
+      }
     }
   ]
 }
