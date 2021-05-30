@@ -11,6 +11,7 @@
 const _debug    = require('debug')('network_target');
 import EventEmitter from 'events';
 import * as modCrypto from 'crypto';
+import _VALIDATOR from 'validator';
 
 // Internal dependencies.
 import { SpawnHelper } from './spawnHelper.js';
@@ -284,20 +285,61 @@ export class NetworkTarget extends EventEmitter {
         this._CB__findGatewayAddr   = this._on_find_gateway_address.bind(this);
 
         // Special handling of target types.
-        if (TARGET_TYPES.CABLE_MODEM === this._target_type) {
-            // Set the type to IPV4 and the destination to the common
-            // address ued for cable modems.
-            this._target_type = TARGET_TYPES.IPV4;
-            this._target_dest = '192.168.100.1';
-        }
-        else if (TARGET_TYPES.GATEWAY === this._target_type) {
-            this._target_dest = '';
-            // Spawn a request to determine the address of the router.
-            const ping = new SpawnHelper();
-            ping.on('complete', this._CB__findGatewayAddr);
-            ping.Spawn({ command:'route', arguments:[`get`, `default`] });
+        switch (this._target_type) {
+            case TARGET_TYPES.CABLE_MODEM:
+            {
+                // Set the type to IPV4 and the destination to the common
+                // address ued for cable modems.
+                this._target_type = TARGET_TYPES.IPV4;
+                this._target_dest = '192.168.100.1';
+            }
+            break;
 
-            this._destination_pending = true;
+            case TARGET_TYPES.GATEWAY:
+            {
+                this._target_dest = '';
+                // Spawn a request to determine the address of the router.
+                const ping = new SpawnHelper();
+                ping.on('complete', this._CB__findGatewayAddr);
+                ping.Spawn({ command:'route', arguments:[`get`, `default`] });
+
+                this._destination_pending = true;
+            }
+            break;
+
+            case TARGET_TYPES.URI:
+            {
+                // Ensure that the destination in indeed a URI/URL.
+                if (!_VALIDATOR.isURL(this.TargetDestination)) {
+                    throw new RangeError(`Target Destination is not a URI/URL. ${this.TargetDestination}`);
+                }
+            }
+            break;
+
+            case TARGET_TYPES.IPV4:
+            {
+                // Ensure that the destination in indeed an IPV4.
+                if (!_VALIDATOR.isIP(this.TargetDestination, _VALIDATOR.IPV4)) {
+                    throw new RangeError(`Target Destination is not an IPV4. ${this.TargetDestination}`);
+                }
+            }
+            break;
+
+            case TARGET_TYPES.IPV6:
+            {
+                // Ensure that the destination in indeed an IPV6.
+                if (!_VALIDATOR.isIP(this.TargetDestination, _VALIDATOR.IPV6)) {
+                    throw new RangeError(`Target Destination is not an IPV6. ${this.TargetDestination}`);
+                }
+            }
+            break;
+
+            default:
+            {
+                // Should never happen.
+                throw new RangeError(`Unknwon target type. ${this._target_type}`);
+            }
+            break;
         }
 
         // Create an identifier based on the target type & destination.
