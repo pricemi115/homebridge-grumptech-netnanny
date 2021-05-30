@@ -3,6 +3,9 @@
 Object.defineProperty(exports, '__esModule', { value: true });
 
 var modCrypto = require('crypto');
+var _VALIDATOR = require('validator');
+
+function _interopDefaultLegacy (e) { return e && typeof e === 'object' && 'default' in e ? e : { 'default': e }; }
 
 function _interopNamespace(e) {
   if (e && e.__esModule) return e;
@@ -25,6 +28,7 @@ function _interopNamespace(e) {
 }
 
 var modCrypto__namespace = /*#__PURE__*/_interopNamespace(modCrypto);
+var _VALIDATOR__default = /*#__PURE__*/_interopDefaultLegacy(_VALIDATOR);
 
 var config_info = {
 	remarks: [
@@ -1086,20 +1090,60 @@ class NetworkTarget extends EventEmitter {
         this._CB__findGatewayAddr   = this._on_find_gateway_address.bind(this);
 
         // Special handling of target types.
-        if (TARGET_TYPES.CABLE_MODEM === this._target_type) {
-            // Set the type to IPV4 and the destination to the common
-            // address ued for cable modems.
-            this._target_type = TARGET_TYPES.IPV4;
-            this._target_dest = '192.168.100.1';
-        }
-        else if (TARGET_TYPES.GATEWAY === this._target_type) {
-            this._target_dest = '';
-            // Spawn a request to determine the address of the router.
-            const ping = new SpawnHelper();
-            ping.on('complete', this._CB__findGatewayAddr);
-            ping.Spawn({ command:'route', arguments:[`get`, `default`] });
+        switch (this._target_type) {
+            case TARGET_TYPES.CABLE_MODEM:
+            {
+                // Set the type to IPV4 and the destination to the common
+                // address ued for cable modems.
+                this._target_type = TARGET_TYPES.IPV4;
+                this._target_dest = '192.168.100.1';
+            }
+            break;
 
-            this._destination_pending = true;
+            case TARGET_TYPES.GATEWAY:
+            {
+                this._target_dest = '';
+                // Spawn a request to determine the address of the router.
+                const ping = new SpawnHelper();
+                ping.on('complete', this._CB__findGatewayAddr);
+                ping.Spawn({ command:'route', arguments:[`get`, `default`] });
+
+                this._destination_pending = true;
+            }
+            break;
+
+            case TARGET_TYPES.URI:
+            {
+                // Ensure that the destination in indeed a URI/URL.
+                if (!_VALIDATOR__default['default'].isURL(this.TargetDestination)) {
+                    throw new RangeError(`Target Destination is not a URI/URL. ${this.TargetDestination}`);
+                }
+            }
+            break;
+
+            case TARGET_TYPES.IPV4:
+            {
+                // Ensure that the destination in indeed an IPV4.
+                if (!_VALIDATOR__default['default'].isIP(this.TargetDestination, _VALIDATOR__default['default'].IPV4)) {
+                    throw new RangeError(`Target Destination is not an IPV4. ${this.TargetDestination}`);
+                }
+            }
+            break;
+
+            case TARGET_TYPES.IPV6:
+            {
+                // Ensure that the destination in indeed an IPV6.
+                if (!_VALIDATOR__default['default'].isIP(this.TargetDestination, _VALIDATOR__default['default'].IPV6)) {
+                    throw new RangeError(`Target Destination is not an IPV6. ${this.TargetDestination}`);
+                }
+            }
+            break;
+
+            default:
+            {
+                // Should never happen.
+                throw new RangeError(`Unknwon target type. ${this._target_type}`);
+            }
         }
 
         // Create an identifier based on the target type & destination.

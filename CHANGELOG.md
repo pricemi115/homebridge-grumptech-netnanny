@@ -3,7 +3,11 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+## [1.3.3] (beta) - 2021-MAY-29
+### What's new
+- [Issue #3](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/3): Added validation for the Target Destination configuration setting, ensuring it matches the Target Type. If you find any issues with the validation please submit a bug [here](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues).
 
+---
 ## [1.3.2] - 2021-MAY-29
 ### What's new
 - Publish a policy regarding what versions receive updates for security vulnerabilities and how to report vulnerabilities.
