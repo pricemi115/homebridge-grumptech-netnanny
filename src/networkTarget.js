@@ -339,6 +339,7 @@ export class NetworkTarget extends EventEmitter {
                 // Should never happen.
                 throw new RangeError(`Unknwon target type. ${this._target_type}`);
             }
+            // eslint-disable-next-line no-unreachable
             break;
         }
 
@@ -630,7 +631,7 @@ export class NetworkTarget extends EventEmitter {
                 if (lines[index].toLowerCase().includes(STATS_TAG)) {
 
                     // Determine if the buffers need to be purged.
-                    this._dataBuffers.forEach((value, key, map) => {
+                    this._dataBuffers.forEach((value, key) => {
                         if ((value.length < this._data_buffer_size)) {
                             // Mark this buffer as not needing to be removed.
                             removeOld.set(key, false);
@@ -674,7 +675,7 @@ export class NetworkTarget extends EventEmitter {
         }
 
         // Purge old data, as needed
-        this._dataBuffers.forEach((value, key, map) => {
+        this._dataBuffers.forEach((value, key) => {
             if (removeOld.get(key)) {
                 // Purge the data. Ok if the buffer is already empty.
                 value.shift();

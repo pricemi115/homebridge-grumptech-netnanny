@@ -6,6 +6,7 @@
 'use strict';
 
 const _debug = require('debug')('homebridge');
+// eslint-disable-next-line no-unused-vars
 import { version as PLUGIN_VER }      from '../package.json';
 import { config_info as CONFIG_INFO } from '../package.json';
 
@@ -85,7 +86,7 @@ export default (homebridgeAPI) => {
 
     // Accessory must be created from PlatformAccessory Constructor
     _PlatformAccessory  = homebridgeAPI.platformAccessory;
-    if (!_PlatformAccessory.hasOwnProperty('PlatformAccessoryEvent')) {
+    if (!Object.prototype.hasOwnProperty.call(_PlatformAccessory, "PlatformAccessoryEvent")) {
         // Append the PlatformAccessoryEvent.IDENTITY enum to the platform accessory reference.
         // This allows us to not need to import anything from 'homebridge'.
         const platformAccessoryEvent = {
@@ -129,7 +130,7 @@ class NetworkPerformanceMonitorPlatform {
         this._name = this._config['name'];
 
         let theSettings = undefined;
-        if (this._config.hasOwnProperty('settings')) {
+        if (Object.prototype.hasOwnProperty.call(this._config, 'settings')) {
             // Get the system configuration,
             theSettings = this._config.settings;
         }
@@ -155,24 +156,24 @@ class NetworkPerformanceMonitorPlatform {
         if (theSettings != undefined) {
             let commonTargetConfig = {};
             /* Get the ping count */
-            if ((theSettings.hasOwnProperty('ping_count')) && (typeof(theSettings.ping_count) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_count')) && (typeof(theSettings.ping_count) === 'number')) {
                 commonTargetConfig.ping_count = theSettings.ping_count;
             }
             /* Get the packet size */
-            if ((theSettings.hasOwnProperty('packet_size')) && (typeof(theSettings.packet_size) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'packet_size')) && (typeof(theSettings.packet_size) === 'number')) {
                 commonTargetConfig.packet_size = theSettings.packet_size;
             }
             /* Get the ping period */
-            if ((theSettings.hasOwnProperty('ping_period')) && (typeof(theSettings.ping_period) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_period')) && (typeof(theSettings.ping_period) === 'number')) {
                 commonTargetConfig.ping_period = theSettings.ping_period;
             }
             /* Get the ping interval */
-            if ((theSettings.hasOwnProperty('ping_interval')) && (typeof(theSettings.ping_interval) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_interval')) && (typeof(theSettings.ping_interval) === 'number')) {
                 commonTargetConfig.ping_interval = theSettings.ping_interval;
             }
 
             /* Ping Target Specific configuration settings */
-            if ((theSettings.hasOwnProperty('ping_targets')) && (Array.isArray(theSettings.ping_targets))) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_targets')) && (Array.isArray(theSettings.ping_targets))) {
 
                 for (const itemConfig of  theSettings.ping_targets) {
                     // Start with the common configs.
@@ -180,35 +181,35 @@ class NetworkPerformanceMonitorPlatform {
 
                     if (typeof(itemConfig) === 'object') {
                         /* Get the Target Type */
-                        if ((itemConfig.hasOwnProperty('target_type')) && (typeof(itemConfig.target_type) === 'string')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_type')) && (typeof(itemConfig.target_type) === 'string')) {
                             targetConfig.target_type = itemConfig.target_type;
                         }
                         /* Get the Target Destination */
-                        if ((itemConfig.hasOwnProperty('target_dest')) && (typeof(itemConfig.target_dest) === 'string')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_dest')) && (typeof(itemConfig.target_dest) === 'string')) {
                             targetConfig.target_dest = itemConfig.target_dest;
                         }
                         /* Get the nominal ping time */
-                        if ((itemConfig.hasOwnProperty('expected_nominal')) && (typeof(itemConfig.expected_nominal) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_nominal')) && (typeof(itemConfig.expected_nominal) === 'number')) {
                             targetConfig.expected_nominal = itemConfig.expected_nominal;
                         }
                         /* Get the nominal ping stamdard deviation */
-                        if ((itemConfig.hasOwnProperty('expected_stdev')) && (typeof(itemConfig.expected_stdev) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_stdev')) && (typeof(itemConfig.expected_stdev) === 'number')) {
                             targetConfig.expected_stdev = itemConfig.expected_stdev;
                         }
                         /* Get the packet loss limit */
-                        if ((itemConfig.hasOwnProperty('loss_limit')) && (typeof(itemConfig.loss_limit) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'loss_limit')) && (typeof(itemConfig.loss_limit) === 'number')) {
                             targetConfig.loss_limit = itemConfig.loss_limit;
                         }
                         /* Get the peak reset time (hr) */
-                        if ((itemConfig.hasOwnProperty('peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
                             targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
                         /* Get the data filter time window (sec) */
-                        if ((itemConfig.hasOwnProperty('data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
                             targetConfig.data_filter_time_window = itemConfig.data_filter_time_window;
                         }
                         /* Get the sensor alert mask */
-                        if ((itemConfig.hasOwnProperty('sensor_alert_mask')) && (typeof(itemConfig.sensor_alert_mask) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'sensor_alert_mask')) && (typeof(itemConfig.sensor_alert_mask) === 'number')) {
                             targetConfig.alert_mask = itemConfig.sensor_alert_mask;
                         }
 
@@ -238,6 +239,7 @@ class NetworkPerformanceMonitorPlatform {
     @param {object} [options]  - Typically containing a "cleanup" or "exit" member.
     @param {object} [err]      - The source of the event trigger.
     ======================================================================== */
+    // eslint-disable-next-line no-unused-vars
     async _destructor(options, err) {
         // Is there an indication that the system is either exiting or needs to
         // be cleaned up?
@@ -282,7 +284,7 @@ class NetworkPerformanceMonitorPlatform {
             // Flush any accessories that are not from this version or are orphans (no corresponding network performance target).
             const accessoriesToRemove = [];
             for (const accessory of this._accessories.values()) {
-                if (!accessory.context.hasOwnProperty('VERSION') ||
+                if (!Object.prototype.hasOwnProperty.call(accessory.context, 'VERSION') ||
                     (accessory.context.VERSION !== ACCESSORY_VERSION)) {
                     this._log(`Accessory ${accessory.displayName} has accessory version ${accessory.context.VERSION}. Version ${ACCESSORY_VERSION} is expected.`);
                     // This accessory needs to be replaced.
@@ -338,11 +340,11 @@ class NetworkPerformanceMonitorPlatform {
     ======================================================================== */
     _processPingReady(results) {
         if ((results === undefined) || (typeof(results) !== 'object')                               ||
-            (!results.hasOwnProperty('sender')) || !(results.sender instanceof _NetworkTarget)      ||
-            (!results.hasOwnProperty('error')) || (typeof(results.error) !== 'boolean')             ||
-            (!results.hasOwnProperty('packet_loss')) || (typeof(results.packet_loss) !== 'number')  ||
-            (!results.hasOwnProperty('ping_time_ms')) || (typeof(results.ping_time_ms) !== 'number')||
-            (!results.hasOwnProperty('ping_stdev')) || (typeof(results.ping_stdev) !== 'number')      ) {
+            (!Object.prototype.hasOwnProperty.call(results, 'sender')) || !(results.sender instanceof _NetworkTarget)      ||
+            (!Object.prototype.hasOwnProperty.call(results, 'error')) || (typeof(results.error) !== 'boolean')             ||
+            (!Object.prototype.hasOwnProperty.call(results, 'packet_loss')) || (typeof(results.packet_loss) !== 'number')  ||
+            (!Object.prototype.hasOwnProperty.call(results, 'ping_time_ms')) || (typeof(results.ping_time_ms) !== 'number')||
+            (!Object.prototype.hasOwnProperty.call(results, 'ping_stdev')) || (typeof(results.ping_stdev) !== 'number')      ) {
             const errText = (results === undefined) ? 'undefined' : results.toString();
             throw new TypeError(`Ping 'ready' results are invalid: ${errText}`);
         }
@@ -515,7 +517,7 @@ class NetworkPerformanceMonitorPlatform {
             const theSettings = accessory.context.SETTINGS;
             if ((theSettings !== undefined) &&
                 (typeof(theSettings) === 'object') &&
-                (theSettings.hasOwnProperty('SwitchState') &&
+                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState') &&
                 (typeof(theSettings.SwitchState) === 'boolean'))) {
                 // Modify the settings
                 switchState = theSettings.SwitchState;
@@ -584,20 +586,20 @@ class NetworkPerformanceMonitorPlatform {
         }
         if ((serviceInfo === undefined) ||
             (typeof(serviceInfo) != 'object') ||
-            (!serviceInfo.hasOwnProperty('uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   )
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   )
         {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
         if ((values === undefined) || (typeof(values) !== 'object') ||
-            (!values.hasOwnProperty('level'))     || ((typeof(values.level) !== 'number')       || (values.level instanceof Error)) ||
-            (!values.hasOwnProperty('fault'))     || ((typeof(values.fault) !== 'boolean')      || (values.fault instanceof Error)) ||
-            (!values.hasOwnProperty('active'))    || ((typeof(values.active) !== 'boolean')     || (values.active instanceof Error)) ||
-            (!values.hasOwnProperty('resetPeak')) || ((typeof(values.resetPeak) !== 'boolean')  || (values.resetPeak instanceof Error)) ) {
+            (!Object.prototype.hasOwnProperty.call(values, 'level'))     || ((typeof(values.level) !== 'number')       || (values.level instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(values, 'fault'))     || ((typeof(values.fault) !== 'boolean')      || (values.fault instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(values, 'active'))    || ((typeof(values.active) !== 'boolean')     || (values.active instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(values, 'resetPeak')) || ((typeof(values.resetPeak) !== 'boolean')  || (values.resetPeak instanceof Error)) ) {
             throw new TypeError(`values must be an object with properties named 'level' (number or Error) and 'fault' (boolean or Error) and 'resetPeak' (boolean or Error)`);
         }
 
@@ -700,8 +702,8 @@ class NetworkPerformanceMonitorPlatform {
             throw new TypeError(`Accessory must be a PlatformAccessory`);
         }
         if ((info === undefined) ||
-            (!info.hasOwnProperty('model'))     || ((typeof(info.model)      !== 'string') || (info.model instanceof Error)) ||
-            (!info.hasOwnProperty('serialnum')) || ((typeof(info.serialnum)  !== 'string') || (info.serialnum instanceof Error))   ) {
+            (!Object.prototype.hasOwnProperty.call(info, 'model'))     || ((typeof(info.model)      !== 'string') || (info.model instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(info, 'serialnum')) || ((typeof(info.serialnum)  !== 'string') || (info.serialnum instanceof Error))   ) {
             throw new TypeError(`info must be an object with properties named 'model' and 'serialnum' that are eother strings or Error`);
         }
 
@@ -794,7 +796,7 @@ class NetworkPerformanceMonitorPlatform {
             let theSettings = accessory.context.SETTINGS;
             if ((theSettings !== undefined) &&
                 (typeof(theSettings) === 'object') &&
-                (theSettings.hasOwnProperty('SwitchState')) &&
+                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState')) &&
                 (typeof(theSettings.SwitchState) === 'boolean')) {
                 // Modify the settings
                 theSettings.SwitchState = value;
