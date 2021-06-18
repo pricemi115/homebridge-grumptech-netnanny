@@ -47,25 +47,25 @@ export const TARGET_TYPES = {
 
 /* Enumeration for peak types */
 export const PEAK_TYPES = {
-    TIME       : 'peak_time',
+    LATENCY    : 'peak_latency',
     STDEV      : 'peak_stddev',
     LOSS       : 'peak_packet_loss'
 };
 
 /* Enumeration for data buffer types */
 export const DATA_BUFFER_TYPES = {
-    TIME       : 'data_time',
+    LATENCY    : 'data_latency',
     STDEV      : 'data_stddev',
     LOSS       : 'data_packet_loss'
 };
 
 /* Enumeration for Alert Types (Bitmask) */
 export const ALERT_BITMASK = {
-    NONE  : 0,
-    TIME  : 1,
-    LOSS  : 2,
-    STDEV : 4,
-    ALL   : 7
+    NONE    : 0,
+    LATENCY : 1,
+    LOSS    : 2,
+    STDEV   : 4,
+    ALL     : 7
 };
 
 /* ==========================================================================
@@ -77,7 +77,7 @@ export const ALERT_BITMASK = {
    @event_param {<NetworkTarget>} [sender]      - Reference to the sender of the event.
    @event_param {bool}            [error]       - Flag indicating is there is an error with the ping.
    @event_param {number}          [packet_loss] - Packet Loss (percent)
-   @event_param {number}          [ping_time_ms]- Ping Time (average) in milliseconds.
+   @event_param {number}          [ping_latency_ms] - Ping Latency (average) in milliseconds.
    @event_param {number}          [ping_stdev]  - Standard Deviation of the ping times.
 
    Event emmitted when the (periodic) ping completes
@@ -94,7 +94,7 @@ export class NetworkTarget extends EventEmitter {
     @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
     @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
     @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
-    @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping time.
+    @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping latency.
     @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
     @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
     @param {number} [config.sensor_alert_mask] - *Optional* The mask indicating which CO2 sensor alerts are active.
@@ -113,7 +113,7 @@ export class NetworkTarget extends EventEmitter {
         let pingInterval    = DEFAULT_PING_INTERVAL;
         let targetType      = TARGET_TYPES.IPV4;
         let targetDest      = "localhost";
-        let expectedNominal = 0.05;
+        let expectedLatency = 0.05;
         let expectedStDev   = 0.005;
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
@@ -216,7 +216,7 @@ export class NetworkTarget extends EventEmitter {
             }
             if (config.expected_nominal) {
                 if (config.expected_nominal > 0) {
-                    expectedNominal = config.expected_nominal;
+                    expectedLatency = config.expected_nominal;
                 }
                 else {
                     throw new RangeError(`config.expected_nominal is invalid: ${config.expected_nominal}`);
@@ -261,7 +261,7 @@ export class NetworkTarget extends EventEmitter {
         this._ping_period               = pingPeriod;
         this._peak_expiration           = peakExpirationTime;
         this._data_buffer_size          = Math.floor(dataFilterTime/pingPeriod);
-        this._expected_nominal          = expectedNominal;
+        this._expected_latency          = expectedLatency;
         this._expected_stdev            = expectedStDev;
         this._alertMask                 = alertBitmask;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
@@ -271,13 +271,13 @@ export class NetworkTarget extends EventEmitter {
         // Create a map of Date objects for tracking when the peaks
         // were last set.
         const now = Date.now();
-        this._peakTime = new Map([[PEAK_TYPES.TIME,  now],
-                                  [PEAK_TYPES.STDEV, now],
-                                  [PEAK_TYPES.LOSS,  now]]);
+        this._peakTime = new Map([[PEAK_TYPES.LATENCY,  now],
+                                  [PEAK_TYPES.STDEV,    now],
+                                  [PEAK_TYPES.LOSS,     now]]);
         // Create a map of data buffers for the numeric results.
-        this._dataBuffers = new Map([[DATA_BUFFER_TYPES.TIME,  []],
-                                     [DATA_BUFFER_TYPES.STDEV, []],
-                                     [DATA_BUFFER_TYPES.LOSS,  []]]);
+        this._dataBuffers = new Map([[DATA_BUFFER_TYPES.LATENCY,[]],
+                                     [DATA_BUFFER_TYPES.STDEV,  []],
+                                     [DATA_BUFFER_TYPES.LOSS,   []]]);
 
         // Callbacks bound to this object.
         this._CB__initiateCheck     = this._on_initiateCheck.bind(this);
@@ -414,12 +414,12 @@ export class NetworkTarget extends EventEmitter {
     }
 
 /*  ========================================================================
-    Description: Read Property accessor for the expected ping time
+    Description: Read Property accessor for the expected ping latency
 
-    @return {number} - time, in milliseconds, expected for the ping operation.
+    @return {number} - time, in milliseconds, expected for the ping latency.
     ======================================================================== */
-    get ExpectedNominal() {
-        return this._expected_nominal;
+    get ExpectedLatency() {
+        return this._expected_latency;
     }
 
 /*  ========================================================================
@@ -587,7 +587,7 @@ export class NetworkTarget extends EventEmitter {
             // Spawn a 'ping' to determine the performance of the network target
             const ping = new SpawnHelper();
             ping.on('complete', this._CB__ping);
-            ping.Spawn({ command:'ping', arguments:[`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, '-q', this.TargetDestination] });
+            ping.Spawn({ command:'ping', arguments:[`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, this.TargetDestination] });
 
             // Update the delay
             delay = this.PingPeriod * CONVERT_SEC_TO_MS;
@@ -615,7 +615,7 @@ export class NetworkTarget extends EventEmitter {
         // Default values used for publishing to listeners
         let err             = true;
         // Map for tracking which buffers to trim (from the left)
-        let removeOld = new Map([[DATA_BUFFER_TYPES.TIME,  true],
+        let removeOld = new Map([[DATA_BUFFER_TYPES.LATENCY,  true],
                                  [DATA_BUFFER_TYPES.STDEV, true],
                                  [DATA_BUFFER_TYPES.LOSS,  true]]);
 
@@ -625,10 +625,22 @@ export class NetworkTarget extends EventEmitter {
 
             // Parse the results
             // -------------------
-            // Find the statistics
+            // Find the raw ping data and statistics
             const STATS_TAG = 'ping statistics';
+            const RAW_PING_TAG = 'icmp_seq=';
+            let rawPingTime = [];
             for (let index=0; index<lines.length; index++) {
-                if (lines[index].toLowerCase().includes(STATS_TAG)) {
+                if (lines[index].toLowerCase().includes(RAW_PING_TAG)) {
+                    // This is a line with a raw reading. It is assumed these come before the statistics line.
+                    const RAW_PING_TIME_PREFIX = 'time=';
+                    const RAW_PING_TIME_SUFFIX = " ms";
+                    const raw_ping_time_start = lines[index].indexOf(RAW_PING_TIME_PREFIX);
+                    if (raw_ping_time_start >= 0) {
+                        const raw_ping_time = lines[index].slice((raw_ping_time_start+RAW_PING_TIME_PREFIX.length), (lines[index].length-RAW_PING_TIME_SUFFIX.length));
+                        rawPingTime.push(Number.parseFloat(raw_ping_time));
+                    }
+                }
+                else if (lines[index].toLowerCase().includes(STATS_TAG)) {
 
                     // Determine if the buffers need to be purged.
                     this._dataBuffers.forEach((value, key) => {
@@ -660,7 +672,7 @@ export class NetworkTarget extends EventEmitter {
                         const ping_stat_data = ping_stats.split('/');
                         // There should be 4 elements (min/avg/max/stddev)
                         if (ping_stat_data.length === 4) {
-                            this._dataBuffers.get(DATA_BUFFER_TYPES.TIME).push(Number.parseFloat(ping_stat_data[1]));
+                            this._dataBuffers.get(DATA_BUFFER_TYPES.LATENCY).push(Number.parseFloat(ping_stat_data[1]));
                             this._dataBuffers.get(DATA_BUFFER_TYPES.STDEV).push(Number.parseFloat(ping_stat_data[3]));
                         }
 
@@ -685,11 +697,11 @@ export class NetworkTarget extends EventEmitter {
         // Raise an event informing interested parties of the results.
         try {
             // Get the results
-            const time  = this._computeAVT(DATA_BUFFER_TYPES.TIME);
-            const stdev = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
-            const loss  = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
+            const latency   = this._computeAVT(DATA_BUFFER_TYPES.LATENCY);
+            const stdev     = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
+            const loss      = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
 
-            this.emit('ready', {sender:this, error:err, packet_loss:loss, ping_time_ms:time, ping_stdev:stdev});
+            this.emit('ready', {sender:this, error:err, packet_loss:loss, ping_latency_ms:latency, ping_stdev:stdev});
         }
         catch (e) {
             _debug(`Error encountered raising 'ready' event. ${e}`);
@@ -856,5 +868,40 @@ export class NetworkTarget extends EventEmitter {
         }
 
         return result;
+    }
+
+/*  ========================================================================
+    Description:    Helper to compute the jitter of the data provided
+
+    @param { [number] } [data] - Array of numbers from which to compute jitter.
+
+    @return {number} - computed jitter
+
+    @throws {TypeError} - Thrown if 'data' is not an array of numbers.
+
+    @remarks - Data is assumed to be the latency.
+    ======================================================================== */
+    _computeJitter(data) {
+        // Validate arguments
+        if ((data === undefined) || (!Array.isArray(data)) ||
+            (data.length <= 1)) {
+            throw new TypeError(`data is not an array of numbers or there is not enough data.`);
+        }
+        for (const val of data) {
+            if (typeof(val) !== 'number') {
+                throw new TypeError(`data contains non-numeric items.`);
+            }
+        }
+
+        let sum = 0;
+        for (let index=1; index < data.length; index++) {
+            // Sum the difference
+            sum += Math.abs(data[index] - data[index-1]);
+        }
+
+        // Compute the jitter
+        const jitter = (sum / (data.length - 1));
+
+        return jitter;
     }
 }

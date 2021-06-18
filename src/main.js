@@ -59,13 +59,16 @@ const PLUGIN_NAME   = CONFIG_INFO.plugin;
 const PLATFORM_NAME = CONFIG_INFO.platform;
 
 // Internal Constants
-const ACCESSORY_VERSION = 1;
+// History:
+//      v1: Initial Release
+//      v2: Latency and Jitter
+const ACCESSORY_VERSION = 2;
 
 const SERVICE_INFO = {
     POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
-    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:_TARGET_PEAK_TYPES.TIME,  data_buffer:_TARGET_DATA_BUFFER_TYPES.TIME,  alert_mask: _TARGET_ALERT_BITMASK.TIME},
-    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:_TARGET_PEAK_TYPES.STDEV, data_buffer:_TARGET_DATA_BUFFER_TYPES.STDEV, alert_mask: _TARGET_ALERT_BITMASK.STDEV},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,  data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,  alert_mask: _TARGET_ALERT_BITMASK.LOSS}
+    LATENCY : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Latency`,             udst:`PingLatency`, peak:_TARGET_PEAK_TYPES.LATENCY,    data_buffer:_TARGET_DATA_BUFFER_TYPES.LATENCY,  alert_mask: _TARGET_ALERT_BITMASK.LATENCY},
+    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingJitter`,  peak:_TARGET_PEAK_TYPES.STDEV,      data_buffer:_TARGET_DATA_BUFFER_TYPES.STDEV,    alert_mask: _TARGET_ALERT_BITMASK.STDEV},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS}
 }
 
 // Accessory must be created from PlatformAccessory Constructor
@@ -188,7 +191,7 @@ class NetworkPerformanceMonitorPlatform {
                         if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_dest')) && (typeof(itemConfig.target_dest) === 'string')) {
                             targetConfig.target_dest = itemConfig.target_dest;
                         }
-                        /* Get the nominal ping time */
+                        /* Get the nominal ping latency */
                         if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_nominal')) && (typeof(itemConfig.expected_nominal) === 'number')) {
                             targetConfig.expected_nominal = itemConfig.expected_nominal;
                         }
@@ -329,11 +332,11 @@ class NetworkPerformanceMonitorPlatform {
     Description: Event handler for the Ping Ready event
 
     @param {object} [results] - Ping 'readt' event results.
-    @event_param {<NetworkTarget>} [results.sender]      - Reference to the sender of the event.
-    @event_param {boolean}         [results.error]       - Flag indicating is there is an error with the ping.
-    @event_param {number}          [results.packet_loss] - Packet Loss (percent)
-    @event_param {number}          [results.ping_time_ms]- Ping Time (average) in milliseconds.
-    @event_param {number}          [results.ping_stdev]  - Standard Deviation of the ping times.
+    @event_param {<NetworkTarget>} [results.sender]         - Reference to the sender of the event.
+    @event_param {boolean}         [results.error]          - Flag indicating is there is an error with the ping.
+    @event_param {number}          [results.packet_loss]    - Packet Loss (percent)
+    @event_param {number}          [results.ping_latency_ms]- Ping Latency (average) in milliseconds.
+    @event_param {number}          [results.ping_stdev]     - Standard Deviation of the ping times.
 
     @throws {TypeError}  - thrown if the 'results' is not an object having the expected values.
     @throws {Error}      - thrown if there is no accessory with a matching id as the sender.
@@ -343,13 +346,13 @@ class NetworkPerformanceMonitorPlatform {
             (!Object.prototype.hasOwnProperty.call(results, 'sender')) || !(results.sender instanceof _NetworkTarget)      ||
             (!Object.prototype.hasOwnProperty.call(results, 'error')) || (typeof(results.error) !== 'boolean')             ||
             (!Object.prototype.hasOwnProperty.call(results, 'packet_loss')) || (typeof(results.packet_loss) !== 'number')  ||
-            (!Object.prototype.hasOwnProperty.call(results, 'ping_time_ms')) || (typeof(results.ping_time_ms) !== 'number')||
+            (!Object.prototype.hasOwnProperty.call(results, 'ping_latency_ms')) || (typeof(results.ping_latency_ms) !== 'number')||
             (!Object.prototype.hasOwnProperty.call(results, 'ping_stdev')) || (typeof(results.ping_stdev) !== 'number')      ) {
             const errText = (results === undefined) ? 'undefined' : results.toString();
             throw new TypeError(`Ping 'ready' results are invalid: ${errText}`);
         }
 
-        this._log.debug(`Ping results: Target:${results.sender.TargetDestination} Error:${results.error} Loss:${results.packet_loss} Time:${results.ping_time_ms} StDev:${results.ping_stdev}`);
+        this._log.debug(`Ping results: Target:${results.sender.TargetDestination} Error:${results.error} Loss:${results.packet_loss} Latency:${results.ping_latency_ms} StDev:${results.ping_stdev}`);
 
         // Update the accessory with the data provided.
         // Get the id for the accessory
@@ -359,25 +362,25 @@ class NetworkPerformanceMonitorPlatform {
             const accessory = this._accessories.get(id);
             if (accessory !== undefined) {
                 // Get the buffer filled flags.
-                const timeBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.TIME.data_buffer);
-                const stdevBufferFilled = results.sender.IsBufferFilled(SERVICE_INFO.STDDEV.data_buffer);
-                const lossBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
+                const latencyBufferFilled   = results.sender.IsBufferFilled(SERVICE_INFO.LATENCY.data_buffer);
+                const stdevBufferFilled     = results.sender.IsBufferFilled(SERVICE_INFO.STDDEV.data_buffer);
+                const lossBufferFilled      = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
 
                 // Compute the fault statuses
-                const threshold  = (3.0*results.sender.ExpectedStdDev);
-                const timeFault  = (results.error || (timeBufferFilled  && (results.ping_time_ms > (results.sender.ExpectedNominal + threshold))));
-                const stdevFault = (results.error || (stdevBufferFilled && (results.ping_stdev > results.sender.ExpectedStdDev)));
-                const lossFault  = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
+                const threshold     = (3.0*results.sender.ExpectedStdDev);
+                const latencyFault  = (results.error || (latencyBufferFilled  && (results.ping_latency_ms > (results.sender.ExpectedLatency + threshold))));
+                const stdevFault    = (results.error || (stdevBufferFilled && (results.ping_stdev > results.sender.ExpectedStdDev)));
+                const lossFault     = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
 
                 // Determine if the peaks have expired.
-                const resetPeakTime     = results.sender.IsPeakExpired(SERVICE_INFO.TIME.peak);
+                const resetPeakLatency  = results.sender.IsPeakExpired(SERVICE_INFO.LATENCY.peak);
                 const resetPeakStdDev   = results.sender.IsPeakExpired(SERVICE_INFO.STDDEV.peak);
                 const resetPeakLoss     = results.sender.IsPeakExpired(SERVICE_INFO.LOSS.peak);
 
                 // Update the values.
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:results.ping_time_ms, fault:timeFault,  resetPeak:resetPeakTime,     active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:results.ping_stdev,   fault:stdevFault, resetPeak:resetPeakStdDev,   active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,  fault:lossFault,  resetPeak:resetPeakLoss,     active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY,{level:results.ping_latency_ms, fault:latencyFault, resetPeak:resetPeakLatency, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:results.ping_stdev,      fault:stdevFault,   resetPeak:resetPeakStdDev,  active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,     fault:lossFault,    resetPeak:resetPeakLoss,    active:true});
             }
         }
         else {
@@ -411,7 +414,7 @@ class NetworkPerformanceMonitorPlatform {
             }
             catch (error)
             {
-                this._log(`Unable to configure accessory ${accessory.displayName}. Version:${accessory.context.VERSION}`);
+                this._log(`Unable to configure accessory ${accessory.displayName}. Version:${accessory.context.VERSION}. Error:${error}`);
                 // We don't know where the exception happened. Ensure that the accessory is in the map.
                 const id = accessory.context.ID;
                 if (!this._accessories.has(id)){
@@ -466,7 +469,7 @@ class NetworkPerformanceMonitorPlatform {
 
         // Create our services.
         accessory.addService(_hap.Service.Switch,               SERVICE_INFO.POWER.uuid,   SERVICE_INFO.POWER.udst);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.TIME.uuid,    SERVICE_INFO.TIME.udst);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.LATENCY.uuid, SERVICE_INFO.LATENCY.udst);
         accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.STDDEV.uuid,  SERVICE_INFO.STDDEV.udst);
         accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.LOSS.uuid,    SERVICE_INFO.LOSS.udst);
 
@@ -532,7 +535,7 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Update the names of each service.
-        const infoItems = [SERVICE_INFO.TIME, SERVICE_INFO.STDDEV, SERVICE_INFO.LOSS];
+        const infoItems = [SERVICE_INFO.LATENCY, SERVICE_INFO.STDDEV, SERVICE_INFO.LOSS];
         for (const name_info of infoItems) {
             const service = accessory.getServiceById(name_info.uuid, name_info.udst);
             if (service !== undefined) {
@@ -541,7 +544,7 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Initialize the Carbon Dioxide Sensors
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.TIME,   {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LATENCY,{level:0.0, fault:false, resetPeak:true, active:switchState});
         this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.STDDEV, {level:0.0, fault:false, resetPeak:true, active:switchState});
         this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LOSS,   {level:0.0, fault:false, resetPeak:true, active:switchState});
 
@@ -642,7 +645,7 @@ class NetworkPerformanceMonitorPlatform {
         }
         else {
             this._log.debug(`No service: Accessory ${accessory.displayName}`);
-            throw new Error(`Accessory ${accessory.displayName} does not have a valid ${serviceInfo} service`);
+            throw new Error(`Accessory ${accessory.displayName} does not have a valid ${serviceInfo.uuid}:${serviceInfo.udst} service`);
         }
     }
 
@@ -811,7 +814,7 @@ class NetworkPerformanceMonitorPlatform {
                     if (target !== undefined) {
                         // Update/reinitialize the accessory data (including the peak, as needed)
                         const theLevel = (value ? 0.0 : -1.0);
-                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY,{level:theLevel, fault:false, resetPeak:value, active:value});
                         this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:theLevel, fault:false, resetPeak:value, active:value});
                         this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:theLevel, fault:false, resetPeak:value, active:value});
 
