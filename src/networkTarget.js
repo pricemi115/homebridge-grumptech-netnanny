@@ -48,14 +48,14 @@ export const TARGET_TYPES = {
 /* Enumeration for peak types */
 export const PEAK_TYPES = {
     LATENCY    : 'peak_latency',
-    STDEV      : 'peak_stddev',
+    JITTER     : 'peak_jitter',
     LOSS       : 'peak_packet_loss'
 };
 
 /* Enumeration for data buffer types */
 export const DATA_BUFFER_TYPES = {
     LATENCY    : 'data_latency',
-    STDEV      : 'data_stddev',
+    JITTER     : 'data_sjitter',
     LOSS       : 'data_packet_loss'
 };
 
@@ -64,8 +64,15 @@ export const ALERT_BITMASK = {
     NONE    : 0,
     LATENCY : 1,
     LOSS    : 2,
-    STDEV   : 4,
+    JITTER  : 4,
     ALL     : 7
+};
+
+/* Enumeration for Standard Deviation Types             */
+/*  - Used to set the offset when computning the result */
+const STANDARD_DEV_TYPE = {
+    POPULATION : 0,
+    SAMPLE     : 1
 };
 
 /* ==========================================================================
@@ -77,8 +84,8 @@ export const ALERT_BITMASK = {
    @event_param {<NetworkTarget>} [sender]      - Reference to the sender of the event.
    @event_param {bool}            [error]       - Flag indicating is there is an error with the ping.
    @event_param {number}          [packet_loss] - Packet Loss (percent)
-   @event_param {number}          [ping_latency_ms] - Ping Latency (average) in milliseconds.
-   @event_param {number}          [ping_stdev]  - Standard Deviation of the ping times.
+   @event_param {number}          [ping_latency_ms] - Ping Latency in milliseconds.
+   @event_param {number}          [ping_jitter] - Ping Jitter in milliseconds.
 
    Event emmitted when the (periodic) ping completes
    ========================================================================== */
@@ -94,8 +101,8 @@ export class NetworkTarget extends EventEmitter {
     @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
     @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
     @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
-    @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping latency.
-    @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
+    @param {number} [config.expected_nominal] - *Optional* The time (in milliseconds) for the expected ping latency.
+    @param {number} [config.expected_jitter]  - *Optional* The expected ping jitter (in milliseconds).
     @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
     @param {number} [config.sensor_alert_mask] - *Optional* The mask indicating which CO2 sensor alerts are active.
 
@@ -113,8 +120,8 @@ export class NetworkTarget extends EventEmitter {
         let pingInterval    = DEFAULT_PING_INTERVAL;
         let targetType      = TARGET_TYPES.IPV4;
         let targetDest      = "localhost";
-        let expectedLatency = 0.05;
-        let expectedStDev   = 0.005;
+        let expectedLatency = 50.0;
+        let expectedJitter  = 5.0;
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
@@ -132,7 +139,7 @@ export class NetworkTarget extends EventEmitter {
                 ((config.ping_count !== undefined)              && (typeof(config.ping_count) !== 'number'))              ||
                 ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
                 ((config.expected_nominal !== undefined)        && (typeof(config.expected_nominal) !== 'number'))        ||
-                ((config.expected_stdev !== undefined)          && (typeof(config.expected_stdev) !== 'number'))          ||
+                ((config.expected_jitter !== undefined)         && (typeof(config.expected_jitter) !== 'number'))          ||
                 ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number')) ||
                 ((config.alert_mask !== undefined)              && (typeof(config.alert_mask) !== 'number'))                ) {
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
@@ -222,12 +229,12 @@ export class NetworkTarget extends EventEmitter {
                     throw new RangeError(`config.expected_nominal is invalid: ${config.expected_nominal}`);
                 }
             }
-            if (config.expected_stdev) {
-                if (config.expected_stdev > 0) {
-                    expectedStDev = config.expected_stdev;
+            if (config.expected_jitter) {
+                if (config.expected_jitter > 0) {
+                    expectedJitter = config.expected_jitter;
                 }
                 else {
-                    throw new RangeError(`config.expected_stdev is invalid: ${config.expected_stdev}`);
+                    throw new RangeError(`config.expected_jitter is invalid: ${config.expected_jitter}`);
                 }
             }
             if (config.data_filter_time_window) {
@@ -262,7 +269,7 @@ export class NetworkTarget extends EventEmitter {
         this._peak_expiration           = peakExpirationTime;
         this._data_buffer_size          = Math.floor(dataFilterTime/pingPeriod);
         this._expected_latency          = expectedLatency;
-        this._expected_stdev            = expectedStDev;
+        this._expected_jitter           = expectedJitter;
         this._alertMask                 = alertBitmask;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
         this._pingInProgress            = false;
@@ -272,11 +279,11 @@ export class NetworkTarget extends EventEmitter {
         // were last set.
         const now = Date.now();
         this._peakTime = new Map([[PEAK_TYPES.LATENCY,  now],
-                                  [PEAK_TYPES.STDEV,    now],
+                                  [PEAK_TYPES.JITTER,   now],
                                   [PEAK_TYPES.LOSS,     now]]);
         // Create a map of data buffers for the numeric results.
         this._dataBuffers = new Map([[DATA_BUFFER_TYPES.LATENCY,[]],
-                                     [DATA_BUFFER_TYPES.STDEV,  []],
+                                     [DATA_BUFFER_TYPES.JITTER,  []],
                                      [DATA_BUFFER_TYPES.LOSS,   []]]);
 
         // Callbacks bound to this object.
@@ -423,13 +430,13 @@ export class NetworkTarget extends EventEmitter {
     }
 
 /*  ========================================================================
-    Description: Read Property accessor for the expected standard deviation of
+    Description: Read Property accessor for the expected jitter of
                  the ping time
 
-    @return {number} - expected standard deviation of the ping (in milliseconds)
+    @return {number} - expected jitter of the ping (in milliseconds)
     ======================================================================== */
-    get ExpectedStdDev() {
-        return this._expected_stdev;
+    get ExpectedJitter() {
+        return this._expected_jitter;
     }
 
 /*  ========================================================================
@@ -616,7 +623,7 @@ export class NetworkTarget extends EventEmitter {
         let err             = true;
         // Map for tracking which buffers to trim (from the left)
         let removeOld = new Map([[DATA_BUFFER_TYPES.LATENCY,  true],
-                                 [DATA_BUFFER_TYPES.STDEV, true],
+                                 [DATA_BUFFER_TYPES.JITTER, true],
                                  [DATA_BUFFER_TYPES.LOSS,  true]]);
 
         if (response.valid &&
@@ -657,17 +664,15 @@ export class NetworkTarget extends EventEmitter {
                 // Compute and Record Jitter
                 try {
                     const jitter = this._computeJitter(rawPingTime);
-                    this._dataBuffers.get(DATA_BUFFER_TYPES.STDEV).push(jitter);
-                    console.log(`${this.TargetDestination}: Jitter=${jitter}`);
+                    this._dataBuffers.get(DATA_BUFFER_TYPES.JITTER).push(jitter);
                 }
                 catch (e) {
                     // Ignore.
                 }
                 // Compute and Record Latency
                 try {
-                    const stats = this._computeStats(rawPingTime);
+                    const stats = this._computeStats(rawPingTime, STANDARD_DEV_TYPE.SAMPLE);
                     this._dataBuffers.get(DATA_BUFFER_TYPES.LATENCY).push(stats.mean);
-                    console.log(`${this.TargetDestination}: Latency=${stats.mean}`);
                 }
                 catch (e) {
                     // Ignore.
@@ -695,10 +700,10 @@ export class NetworkTarget extends EventEmitter {
         try {
             // Get the results
             const avtLatency   = this._computeAVT(DATA_BUFFER_TYPES.LATENCY);
-            const avtJitter    = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
+            const avtJitter    = this._computeAVT(DATA_BUFFER_TYPES.JITTER);
             const avtLoss      = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
 
-            this.emit('ready', {sender:this, error:err, packet_loss:avtLoss, ping_latency_ms:avtLatency, ping_stdev:avtJitter});
+            this.emit('ready', {sender:this, error:err, packet_loss:avtLoss, ping_latency_ms:avtLatency, ping_jitter:avtJitter});
         }
         catch (e) {
             _debug(`Error encountered raising 'ready' event. ${e}`);
@@ -759,16 +764,18 @@ export class NetworkTarget extends EventEmitter {
 /*  ========================================================================
     Description:    Helper to compute the statistics of the data provided
 
-    @param { [number] } [data] - Array of numbers from which to compute the statistics.
+    @param { [number] } [data]          - Array of numbers from which to compute the statistics.
+    @param { STANDARD_DEV_TYPE } type   - *Optional* Type of standard deviation to compute: Population or Sample.
+                                            Defaults to Sample
 
     @return {object} - computed statistics
     @retuen {object.mean} - average of the data
     @return {object.median} - median of the data
     @return {object.stddev} - standard deviation of the data
 
-    @throws {TypeError} - Thrown if 'data' is not an array of numbers.
+    @throws {TypeError} - Thrown if 'data' is not an array of numbers or if 'type' is not valid
     ======================================================================== */
-    _computeStats(data) {
+    _computeStats(data, type) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||
             (data.length < 0)) {
@@ -778,6 +785,11 @@ export class NetworkTarget extends EventEmitter {
             if (typeof(val) !== 'number') {
                 throw new TypeError(`data contains non-numeric items.`);
             }
+        }
+        if ((type !== undefined) &&
+            ((typeof(type) !== 'number') || (Object.values(STANDARD_DEV_TYPE).indexOf(type) < 0)))
+        {
+            throw new TypeError(`type is not an valid.`);
         }
 
         // Make a deep copy of the buffer
@@ -807,7 +819,8 @@ export class NetworkTarget extends EventEmitter {
             }
         }
         // Compute the standard deviatiation
-        const std_dev = (theData.length > 1) ? (Math.sqrt(s/(theData.length-1))) : Number.NaN;
+        const offset = ((type === STANDARD_DEV_TYPE.POPULATION) ? 0 : 1);
+        const std_dev = (theData.length > offset) ? (Math.sqrt(s/(theData.length-offset))) : Number.NaN;
 
         // Determine the median
         // Note: Using Math.floor() biased us to not report false/premature issues/errors.
@@ -841,7 +854,7 @@ export class NetworkTarget extends EventEmitter {
         let buffer = [].concat(this._dataBuffers.get(buffer_type));
 
         // Compute the statistics of the data.
-        const stats = this._computeStats(buffer);
+        const stats = this._computeStats(buffer, STANDARD_DEV_TYPE.POPULATION);
 
         // Default to the median of the unfiltered stats.
         let result = stats.median;
@@ -860,7 +873,7 @@ export class NetworkTarget extends EventEmitter {
             }
 
             // Determine the filtered result.
-            const filteredStats = this._computeStats(filteredData);
+            const filteredStats = this._computeStats(filteredData, STANDARD_DEV_TYPE.POPULATION);
             result = filteredStats.median;
         }
 
@@ -881,7 +894,7 @@ export class NetworkTarget extends EventEmitter {
     _computeJitter(data) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||
-            (data.length <= 1)) {
+            (data.length <= 0)) {
             throw new TypeError(`data is not an array of numbers or there is not enough data.`);
         }
         for (const val of data) {
@@ -897,7 +910,7 @@ export class NetworkTarget extends EventEmitter {
         }
 
         // Compute the jitter
-        const jitter = (sum / (data.length - 1));
+        const jitter = ((data.length > 1) ? (sum / (data.length - 1)) : 0 );
 
         return jitter;
     }
