@@ -626,63 +626,60 @@ export class NetworkTarget extends EventEmitter {
             // Parse the results
             // -------------------
             // Find the raw ping data and statistics
-            const STATS_TAG = 'ping statistics';
-            const RAW_PING_TAG = 'icmp_seq=';
+            const RAW_PING_SEQ_TAG = 'icmp_seq=';
             let rawPingTime = [];
+            let rawPingLossCount = 0;
             for (let index=0; index<lines.length; index++) {
-                if (lines[index].toLowerCase().includes(RAW_PING_TAG)) {
-                    // This is a line with a raw reading. It is assumed these come before the statistics line.
+                // Search for lines that provide raw ping results.
+                if (lines[index].toLowerCase().includes(RAW_PING_SEQ_TAG)) {
                     const RAW_PING_TIME_PREFIX = 'time=';
                     const RAW_PING_TIME_SUFFIX = " ms";
+                    // This is a line with a raw reading. It is assumed these come before the statistics line.
                     const raw_ping_time_start = lines[index].indexOf(RAW_PING_TIME_PREFIX);
                     if (raw_ping_time_start >= 0) {
                         const raw_ping_time = lines[index].slice((raw_ping_time_start+RAW_PING_TIME_PREFIX.length), (lines[index].length-RAW_PING_TIME_SUFFIX.length));
                         rawPingTime.push(Number.parseFloat(raw_ping_time));
                     }
-                }
-                else if (lines[index].toLowerCase().includes(STATS_TAG)) {
-
-                    // Determine if the buffers need to be purged.
-                    this._dataBuffers.forEach((value, key) => {
-                        if ((value.length < this._data_buffer_size)) {
-                            // Mark this buffer as not needing to be removed.
-                            removeOld.set(key, false);
-                        }
-                    });
-
-                    // We assume that the next line has the packet loss stats.
-                    if ((index + 1) < lines.length) {
-                        const packet_stats = lines[index+1].split(',');
-                        // The packet loss is in the third element
-                        if (packet_stats.length >= 3) {
-                            const PACKET_LOSS_TAG = '% packet loss';
-                            const packet_loss_tag_locn = packet_stats[2].toLowerCase().indexOf(PACKET_LOSS_TAG);
-                            if (packet_loss_tag_locn >= 0) {
-                                this._dataBuffers.get(DATA_BUFFER_TYPES.LOSS).push(Number.parseFloat(packet_stats[2].toLowerCase().slice(0, packet_loss_tag_locn)));
-                            }
-                        }
+                    else {
+                        // The RAW_PING_TIME_PREFIX tag was not found in the raw reading. This indicates packet loss.
+                        rawPingLossCount += 1;
                     }
-                    // The next line contains the stats (if we got any responses)
-                    if ((index + 2) < lines.length) {
-                        // Get the ping stats data.
-                        const PING_STATS_PREFIX = "round-trip min/avg/max/stddev = ";
-                        const PING_STATS_SUFFIX  = " ms";
-                        const ping_stats = lines[index+2].slice(PING_STATS_PREFIX.length, (lines[index+2].length-PING_STATS_SUFFIX.length));
-                        // Break up the data
-                        const ping_stat_data = ping_stats.split('/');
-                        // There should be 4 elements (min/avg/max/stddev)
-                        if (ping_stat_data.length === 4) {
-                            this._dataBuffers.get(DATA_BUFFER_TYPES.LATENCY).push(Number.parseFloat(ping_stat_data[1]));
-                            this._dataBuffers.get(DATA_BUFFER_TYPES.STDEV).push(Number.parseFloat(ping_stat_data[3]));
-                        }
-
-                        // Clear the error flag
-                        err = false;
-                    }
-
-                    // no need to keep searching.
-                    break;
                 }
+            }
+
+            // Compute and Record the Ping results.
+            const totalReadings = (rawPingLossCount + rawPingTime.length);
+            err = (totalReadings <= 0);
+            if (!err) {
+                // Compute and Record Packet Loss.
+                const loss = (rawPingLossCount / totalReadings) * 100.0;
+                this._dataBuffers.get(DATA_BUFFER_TYPES.LOSS).push(loss);
+                // Compute and Record Jitter
+                try {
+                    const jitter = this._computeJitter(rawPingTime);
+                    this._dataBuffers.get(DATA_BUFFER_TYPES.STDEV).push(jitter);
+                    console.log(`${this.TargetDestination}: Jitter=${jitter}`);
+                }
+                catch (e) {
+                    // Ignore.
+                }
+                // Compute and Record Latency
+                try {
+                    const stats = this._computeStats(rawPingTime);
+                    this._dataBuffers.get(DATA_BUFFER_TYPES.LATENCY).push(stats.mean);
+                    console.log(`${this.TargetDestination}: Latency=${stats.mean}`);
+                }
+                catch (e) {
+                    // Ignore.
+                }
+
+                // Determine if the buffers need to be purged.
+                this._dataBuffers.forEach((value, key) => {
+                    if ((value.length < this._data_buffer_size)) {
+                        // Mark this buffer as not needing to be removed.
+                        removeOld.set(key, false);
+                    }
+                });
             }
         }
 
@@ -697,11 +694,11 @@ export class NetworkTarget extends EventEmitter {
         // Raise an event informing interested parties of the results.
         try {
             // Get the results
-            const latency   = this._computeAVT(DATA_BUFFER_TYPES.LATENCY);
-            const stdev     = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
-            const loss      = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
+            const avtLatency   = this._computeAVT(DATA_BUFFER_TYPES.LATENCY);
+            const avtJitter    = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
+            const avtLoss      = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
 
-            this.emit('ready', {sender:this, error:err, packet_loss:loss, ping_latency_ms:latency, ping_stdev:stdev});
+            this.emit('ready', {sender:this, error:err, packet_loss:avtLoss, ping_latency_ms:avtLatency, ping_stdev:avtJitter});
         }
         catch (e) {
             _debug(`Error encountered raising 'ready' event. ${e}`);
@@ -815,7 +812,7 @@ export class NetworkTarget extends EventEmitter {
         // Determine the median
         // Note: Using Math.floor() biased us to not report false/premature issues/errors.
         const medianIndex = Math.floor(theData.length/2);
-        const median = theData[medianIndex];
+        const median = (theData.length > medianIndex) ? theData[medianIndex] : 0;
 
         const result = {mean:mean, stddev:std_dev, median:median, min:min, max:max, size:theData.length};
         _debug(`Stats Report:`);
