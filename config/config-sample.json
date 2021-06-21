@@ -17,8 +17,8 @@
             {
                 "target_type": "cable_modem",
                 "loss_limit": 15,
-                "expected_nominal": 10,
-                "expected_stdev": 3,
+                "expected_latency": 10,
+                "expected_jitter": 3,
                 "peak_expiration": 8,
                 "data_filter_time_window": 180
             },
@@ -26,16 +26,16 @@
                 "target_type": "ipv4",
                 "target_dest": "google-public-dns-b.google.com",
                 "loss_limit": 15,
-                "expected_nominal": 27,
-                "expected_stdev": 5,
+                "expected_latency": 27,
+                "expected_jitter": 5,
                 "peak_expiration": 8,
                 "data_filter_time_window": 180
             },
             {
                 "target_type": "gateway",
                 "loss_limit": 15,
-                "expected_nominal": 10,
-                "expected_stdev": 3,
+                "expected_latency": 10,
+                "expected_jitter": 3,
                 "peak_expiration": 8,
                 "data_filter_time_window": 180
             }
