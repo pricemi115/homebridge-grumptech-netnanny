@@ -54,8 +54,8 @@ Additionally, especially if this system will be running other homebridge modules
 | Target Type | Type of target. | ping_targets:items:target_type | Per Target | String | N/A | ipv4 | uri, ipv4, ipv6, gateway, cable_modem |||
 | Target Destination | Destination for the ping | ping_targets:items:target_dest | Per Target | String ||||| Not applicable for gateway or cable_modem |
 | Packet Loss Limit | The limit, in percent, of lost packets that will be tolerated. | ping_targets:items:loss_limit | Per Target | Number | Percent | 5 | 0 | 100 ||
-| Expected Nominal | The expected time, in milliseconds, for the ping. | ping_targets:items:expected_nominal | Per Target | Number | Time:milliseconds | 10 | >0 | N/A ||
-| Expected Standard Deviation | The expected standard deviation for the set of ping requests. | ping_targets:items:expected_stdev | Per Target | Number | Time:milliseconds | 1 | >0 | N/A ||
+| Expected Latency | The expected latency, in milliseconds, for the ping. | ping_targets:items:expected_latency| Per Target | Number | Time:milliseconds | 10 | >0 | N/A ||
+| Expected Jitter | The expected jitter, in milliseconds, of the ping latency. | ping_targets:items:expected_jitter | Per Target | Number | Time:milliseconds | 1 | >0 | N/A ||
 | Peak Expiration Time | The time, in hours, used to reset the peak values. | ping_targets:items:peak_expiration | Per Target | Number | Time:hours | 12 | 0 | N/A ||
 | Data Filter Time Window | The time, in seconds, over which to filter the ping results. | data_filter_time_window | Per Target | Number | Time:seconds | 180 | 6 | N/A | Values less than the 'Ping Period' will be ignored. |
 | Sensor Alert | Indicates which of the Carbon Dioxide sensors issue CO2 aleets when the data exceeds specified limits. | sensor_alert_mask | Per Target | Number | Bitmask | 7 | 0 | 7 | Bit#0:Time, Bit#1:Packet Loss; Bit#2:Standard Deviation |
@@ -67,8 +67,8 @@ If you would rather manually configure and run the plugin, you will find a sampl
 The plugin will create, or restore, a dynamic accessory for each network target specified in the comfiguration. Each accessory will advertise four services: (1) switch, and (3) carbon dioxide sensors. All of the data presented for the carbon dioxide sensors is the result of passing the ping results through a moving average. In an effort to keep outliers from affecting the reported values, a user-specified number of outliers will be excluded from the moving average computation. The outliners that are excluded alternate between the highest then lowest values until the number of values to exclude has been reached.
 
 - **Power**: A switch, with the name of the Target Destination, that controls the active state of the network performance target.
-- **Time**: The average ping time, in milliseconds. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Nominal + (3 * Expected Standard Deviation)`
-- **Standard Deviation**: The standard deviation of this ping results, in milliseconds. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Standard Deviation`
+- **Latency**: The average ping latency, in milliseconds. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Latency + (3 * Expected Jitter)`
+- **Jitter**: The jitter, in milliseconds, of the ping latency results. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Jitter`
 - **Packet Loss**: The packet loss, in percent. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Packet Loss Limit`
 
 When the current value for any of the carbon dioxide sensors exceeds the user-specified expected limits, the sensor’s alert will be set and, in addition, the sensor’s _Detected_ value will be set to abnormal levels, if configured. Each Carbon Dioxide sensor can be configured to not set the _Detected_ value to abnormal when a fault is encountered. Setting the _Detected_ value to abnormal levels should result in am alert noticiation from HomeKit.

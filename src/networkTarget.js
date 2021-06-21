@@ -101,7 +101,7 @@ export class NetworkTarget extends EventEmitter {
     @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
     @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
     @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
-    @param {number} [config.expected_nominal] - *Optional* The time (in milliseconds) for the expected ping latency.
+    @param {number} [config.expected_latency] - *Optional* The time (in milliseconds) for the expected ping latency.
     @param {number} [config.expected_jitter]  - *Optional* The expected ping jitter (in milliseconds).
     @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
     @param {number} [config.sensor_alert_mask] - *Optional* The mask indicating which CO2 sensor alerts are active.
@@ -120,8 +120,8 @@ export class NetworkTarget extends EventEmitter {
         let pingInterval    = DEFAULT_PING_INTERVAL;
         let targetType      = TARGET_TYPES.IPV4;
         let targetDest      = "localhost";
-        let expectedLatency = 50.0;
-        let expectedJitter  = 5.0;
+        let expectedLatency = 10.0;
+        let expectedJitter  = 1.0;
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
@@ -138,7 +138,7 @@ export class NetworkTarget extends EventEmitter {
                 ((config.ping_interval !== undefined)           && (typeof(config.ping_count) !== 'number'))              ||
                 ((config.ping_count !== undefined)              && (typeof(config.ping_count) !== 'number'))              ||
                 ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
-                ((config.expected_nominal !== undefined)        && (typeof(config.expected_nominal) !== 'number'))        ||
+                ((config.expected_latency !== undefined)        && (typeof(config.expected_latency) !== 'number'))        ||
                 ((config.expected_jitter !== undefined)         && (typeof(config.expected_jitter) !== 'number'))          ||
                 ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number')) ||
                 ((config.alert_mask !== undefined)              && (typeof(config.alert_mask) !== 'number'))                ) {
@@ -221,12 +221,12 @@ export class NetworkTarget extends EventEmitter {
                     throw new RangeError(`Ping expiration time is undefined or is less than the minimum. ${config.peak_expiration}`);
                 }
             }
-            if (config.expected_nominal) {
-                if (config.expected_nominal > 0) {
-                    expectedLatency = config.expected_nominal;
+            if (config.expected_latency) {
+                if (config.expected_latency > 0) {
+                    expectedLatency = config.expected_latency;
                 }
                 else {
-                    throw new RangeError(`config.expected_nominal is invalid: ${config.expected_nominal}`);
+                    throw new RangeError(`config.expected_latency is invalid: ${config.expected_latency}`);
                 }
             }
             if (config.expected_jitter) {

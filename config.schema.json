@@ -82,16 +82,16 @@
                                     "maximum": 100,
                                     "required": false
                                 },
-                                "expected_nominal": {
-                                    "title": "Expected Nominal",
+                                "expected_latency": {
+                                    "title": "Expected Latency",
                                     "description": "The expected time, in milliseconds, for the ping.",
                                     "type": "number",
                                     "default": 10,
                                     "required": false
                                 },
-                                "expected_stdev": {
-                                    "title": "Expected Standard Deviation",
-                                    "description": "The expected standard deviation for the set of ping requests.",
+                                "expected_jitter": {
+                                    "title": "Expected Jitter",
+                                    "description": "The expected jitter, in milliseconds, of the ping latency.",
                                     "type": "number",
                                     "default": 1,
                                     "required": false

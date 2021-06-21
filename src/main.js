@@ -192,8 +192,8 @@ class NetworkPerformanceMonitorPlatform {
                             targetConfig.target_dest = itemConfig.target_dest;
                         }
                         /* Get the nominal ping latency */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_nominal')) && (typeof(itemConfig.expected_nominal) === 'number')) {
-                            targetConfig.expected_nominal = itemConfig.expected_nominal;
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_latency')) && (typeof(itemConfig.expected_latency) === 'number')) {
+                            targetConfig.expected_latency = itemConfig.expected_latency;
                         }
                         /* Get the nominal ping stamdard deviation */
                         if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_jitter')) && (typeof(itemConfig.expected_jitter) === 'number')) {
