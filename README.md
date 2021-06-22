@@ -30,7 +30,7 @@ This plugin is best experienced when running as a module installed and managed b
 <img src="./assets/config-ui-x_configjson/Page_0002.png"
      alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny (Page 2)"
      style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
-     width="42.5%">
+     width="35%">
 <br/>
 For details on the configuration settings, please refer to the _Configuration Settings_ section below.
 

@@ -574,7 +574,7 @@ class SpawnHelper extends EventEmitter {
     get IsPending() {
         return ( this._pending );
     }
- 
+
  /* ========================================================================
     Description: Read-Only Property accessor to read the valid flag for this
                  item.
@@ -582,7 +582,7 @@ class SpawnHelper extends EventEmitter {
     @return {bool} - true if processing completed successfully.
     ======================================================================== */
     get IsValid() {
-        return ( (this._command !== undefined) && 
+        return ( (this._command !== undefined) &&
                  !this.IsPending && !this._error_encountered );
     }
 
@@ -590,7 +590,7 @@ class SpawnHelper extends EventEmitter {
     Description: Read-Only Property accessor to read the result data for this
                  item.
 
-    @return {<Buffer>} - Data collected from the spawn process. 
+    @return {<Buffer>} - Data collected from the spawn process.
                          Unreliable and/or undefined if processing was not successful.
     ======================================================================== */
     get Result() {
@@ -601,7 +601,7 @@ class SpawnHelper extends EventEmitter {
     Description: Read-Only Property accessor to read the error data for this
                  item.
 
-    @return {<Buffer>} - Error data collected from the spawn process. 
+    @return {<Buffer>} - Error data collected from the spawn process.
                          Unreliable and/or undefined if processing completed successfully.
     ======================================================================== */
     get Error() {
@@ -648,7 +648,7 @@ class SpawnHelper extends EventEmitter {
 
     @return {bool}  - true if child process is spawned
 
-    @throws {TypeError}  - arguments are not of the expected type. 
+    @throws {TypeError}  - arguments are not of the expected type.
     @throws {Error}      - Spawn invoked when an existing spawn is still pending.
     ======================================================================== */
     Spawn(request) {
@@ -663,7 +663,7 @@ class SpawnHelper extends EventEmitter {
             throw new TypeError('request must be an obkect');
         }
         // Validate 'required' command request.
-        if ( (!request.hasOwnProperty('command'))   ||
+        if ( (!Object.prototype.hasOwnProperty.call(request, 'command'))   ||
              (typeof(request.command) !== 'string') ||
              (request.command.length <= 0)            ) {
             throw new TypeError('request.command must be a non-zero length string.');
@@ -672,7 +672,7 @@ class SpawnHelper extends EventEmitter {
         this._command = request.command;
 
         // Validate 'optional' arguments request
-        if (request.hasOwnProperty('arguments')) {
+        if (Object.prototype.hasOwnProperty.call(request, 'arguments')) {
             if (!Array.isArray(request.arguments)) {
                 throw new TypeError('request.arguments must be an array of strings.');
             }
@@ -692,7 +692,7 @@ class SpawnHelper extends EventEmitter {
         }
 
         // Validate 'optional' options request
-        if (request.hasOwnProperty('options')) {
+        if (Object.prototype.hasOwnProperty.call(request, 'options')) {
             if (!Array.isArray(request.options)) {
                 throw new TypeError('request.options must be an array of strings.');
             }
@@ -726,7 +726,7 @@ class SpawnHelper extends EventEmitter {
         // Register for the message notification
         childProcess.on('message', this._CB_process_message);
         // Register for the error notification
-        childProcess.on('error', this._CB_process_error );        
+        childProcess.on('error', this._CB_process_error );
         // Register for the close notification
         childProcess.on('close', this._CB_process_close);
     }
@@ -772,6 +772,7 @@ class SpawnHelper extends EventEmitter {
     @param { <Object> } [message]      - A parsed JSON object or primitive value.
     @param { <Handle> } [sendHandle]   - Handle
     ======================================================================== */
+    // eslint-disable-next-line no-unused-vars
     _process_message(message, sendHandle) {
         // TODO: Not sure if I need this.
         _debug$2(`Child Process for ${this.Command}: '${message}'`);
@@ -784,7 +785,7 @@ class SpawnHelper extends EventEmitter {
     ======================================================================== */
     _process_error(error) {
         // Log the error info.
-        _debug$2(`Child Process for ${this.Command}: error_num:${errror.number} error_name:${error.name} error_msg:${error.message}`);
+        _debug$2(`Child Process for ${this.Command}: error_num:${error.number} error_name:${error.name} error_msg:${error.message}`);
 
         // Ensure that the error is recorded.
         this._error_encountered = true;
@@ -794,7 +795,7 @@ class SpawnHelper extends EventEmitter {
     Description:    Event handler for the Child Process Close Notification
 
     @param { <number> } [code]   - The exit code if the child exited on its own.
-    @param { <string> } [signal] - The signal by which the child process was terminated. 
+    @param { <string> } [signal] - The signal by which the child process was terminated.
     ======================================================================== */
     _process_close(code, signal) {
         // Log the close info.
@@ -807,7 +808,7 @@ class SpawnHelper extends EventEmitter {
         const isValid = this.IsValid;
         const response = {valid:isValid, result:(isValid ? this.Result : this.Error), source:this};
         this.emit('complete', response);
-    }   
+    }
 }
 
 /* ==========================================================================
@@ -852,25 +853,32 @@ const TARGET_TYPES = {
 
 /* Enumeration for peak types */
 const PEAK_TYPES = {
-    TIME       : 'peak_time',
-    STDEV      : 'peak_stddev',
+    LATENCY    : 'peak_latency',
+    JITTER     : 'peak_jitter',
     LOSS       : 'peak_packet_loss'
 };
 
 /* Enumeration for data buffer types */
 const DATA_BUFFER_TYPES = {
-    TIME       : 'data_time',
-    STDEV      : 'data_stddev',
+    LATENCY    : 'data_latency',
+    JITTER     : 'data_sjitter',
     LOSS       : 'data_packet_loss'
 };
 
 /* Enumeration for Alert Types (Bitmask) */
 const ALERT_BITMASK = {
-    NONE  : 0,
-    TIME  : 1,
-    LOSS  : 2,
-    STDEV : 4,
-    ALL   : 7
+    NONE    : 0,
+    LATENCY : 1,
+    LOSS    : 2,
+    JITTER  : 4,
+    ALL     : 7
+};
+
+/* Enumeration for Standard Deviation Types             */
+/*  - Used to set the offset when computning the result */
+const STANDARD_DEV_TYPE = {
+    POPULATION : 0,
+    SAMPLE     : 1
 };
 
 /* ==========================================================================
@@ -882,8 +890,8 @@ const ALERT_BITMASK = {
    @event_param {<NetworkTarget>} [sender]      - Reference to the sender of the event.
    @event_param {bool}            [error]       - Flag indicating is there is an error with the ping.
    @event_param {number}          [packet_loss] - Packet Loss (percent)
-   @event_param {number}          [ping_time_ms]- Ping Time (average) in milliseconds.
-   @event_param {number}          [ping_stdev]  - Standard Deviation of the ping times.
+   @event_param {number}          [ping_latency_ms] - Ping Latency in milliseconds.
+   @event_param {number}          [ping_jitter] - Ping Jitter in milliseconds.
 
    Event emmitted when the (periodic) ping completes
    ========================================================================== */
@@ -899,8 +907,8 @@ class NetworkTarget extends EventEmitter {
     @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
     @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
     @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
-    @param {number} [config.expected_nominal] - *Optional* The time (in seconds) for the expected ping time.
-    @param {number} [config.expected_stdev]   - *Optional* The standard deviation of the ping times.
+    @param {number} [config.expected_latency] - *Optional* The time (in milliseconds) for the expected ping latency.
+    @param {number} [config.expected_jitter]  - *Optional* The expected ping jitter (in milliseconds).
     @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
     @param {number} [config.sensor_alert_mask] - *Optional* The mask indicating which CO2 sensor alerts are active.
 
@@ -918,8 +926,8 @@ class NetworkTarget extends EventEmitter {
         let pingInterval    = DEFAULT_PING_INTERVAL;
         let targetType      = TARGET_TYPES.IPV4;
         let targetDest      = "localhost";
-        let expectedNominal = 0.05;
-        let expectedStDev   = 0.005;
+        let expectedLatency = 10.0;
+        let expectedJitter  = 1.0;
         let packetSize      = DEFAULT_PACKET_SIZE;
         let lossLimit       = DEFAULT_PACKET_LOSS_LIMIT;
         let peakExpirationTime = DEFAULT_PEAK_EXPIRATION_MS;
@@ -936,8 +944,8 @@ class NetworkTarget extends EventEmitter {
                 ((config.ping_interval !== undefined)           && (typeof(config.ping_count) !== 'number'))              ||
                 ((config.ping_count !== undefined)              && (typeof(config.ping_count) !== 'number'))              ||
                 ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
-                ((config.expected_nominal !== undefined)        && (typeof(config.expected_nominal) !== 'number'))        ||
-                ((config.expected_stdev !== undefined)          && (typeof(config.expected_stdev) !== 'number'))          ||
+                ((config.expected_latency !== undefined)        && (typeof(config.expected_latency) !== 'number'))        ||
+                ((config.expected_jitter !== undefined)         && (typeof(config.expected_jitter) !== 'number'))          ||
                 ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number')) ||
                 ((config.alert_mask !== undefined)              && (typeof(config.alert_mask) !== 'number'))                ) {
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
@@ -1019,20 +1027,20 @@ class NetworkTarget extends EventEmitter {
                     throw new RangeError(`Ping expiration time is undefined or is less than the minimum. ${config.peak_expiration}`);
                 }
             }
-            if (config.expected_nominal) {
-                if (config.expected_nominal > 0) {
-                    expectedNominal = config.expected_nominal;
+            if (config.expected_latency) {
+                if (config.expected_latency > 0) {
+                    expectedLatency = config.expected_latency;
                 }
                 else {
-                    throw new RangeError(`config.expected_nominal is invalid: ${config.expected_nominal}`);
+                    throw new RangeError(`config.expected_latency is invalid: ${config.expected_latency}`);
                 }
             }
-            if (config.expected_stdev) {
-                if (config.expected_stdev > 0) {
-                    expectedStDev = config.expected_stdev;
+            if (config.expected_jitter) {
+                if (config.expected_jitter > 0) {
+                    expectedJitter = config.expected_jitter;
                 }
                 else {
-                    throw new RangeError(`config.expected_stdev is invalid: ${config.expected_stdev}`);
+                    throw new RangeError(`config.expected_jitter is invalid: ${config.expected_jitter}`);
                 }
             }
             if (config.data_filter_time_window) {
@@ -1066,8 +1074,8 @@ class NetworkTarget extends EventEmitter {
         this._ping_period               = pingPeriod;
         this._peak_expiration           = peakExpirationTime;
         this._data_buffer_size          = Math.floor(dataFilterTime/pingPeriod);
-        this._expected_nominal          = expectedNominal;
-        this._expected_stdev            = expectedStDev;
+        this._expected_latency          = expectedLatency;
+        this._expected_jitter           = expectedJitter;
         this._alertMask                 = alertBitmask;
         this._timeoutID                 = INVALID_TIMEOUT_ID;
         this._pingInProgress            = false;
@@ -1076,13 +1084,13 @@ class NetworkTarget extends EventEmitter {
         // Create a map of Date objects for tracking when the peaks
         // were last set.
         const now = Date.now();
-        this._peakTime = new Map([[PEAK_TYPES.TIME,  now],
-                                  [PEAK_TYPES.STDEV, now],
-                                  [PEAK_TYPES.LOSS,  now]]);
+        this._peakTime = new Map([[PEAK_TYPES.LATENCY,  now],
+                                  [PEAK_TYPES.JITTER,   now],
+                                  [PEAK_TYPES.LOSS,     now]]);
         // Create a map of data buffers for the numeric results.
-        this._dataBuffers = new Map([[DATA_BUFFER_TYPES.TIME,  []],
-                                     [DATA_BUFFER_TYPES.STDEV, []],
-                                     [DATA_BUFFER_TYPES.LOSS,  []]]);
+        this._dataBuffers = new Map([[DATA_BUFFER_TYPES.LATENCY,[]],
+                                     [DATA_BUFFER_TYPES.JITTER,  []],
+                                     [DATA_BUFFER_TYPES.LOSS,   []]]);
 
         // Callbacks bound to this object.
         this._CB__initiateCheck     = this._on_initiateCheck.bind(this);
@@ -1217,22 +1225,22 @@ class NetworkTarget extends EventEmitter {
     }
 
 /*  ========================================================================
-    Description: Read Property accessor for the expected ping time
+    Description: Read Property accessor for the expected ping latency
 
-    @return {number} - time, in milliseconds, expected for the ping operation.
+    @return {number} - time, in milliseconds, expected for the ping latency.
     ======================================================================== */
-    get ExpectedNominal() {
-        return this._expected_nominal;
+    get ExpectedLatency() {
+        return this._expected_latency;
     }
 
 /*  ========================================================================
-    Description: Read Property accessor for the expected standard deviation of
+    Description: Read Property accessor for the expected jitter of
                  the ping time
 
-    @return {number} - expected standard deviation of the ping (in milliseconds)
+    @return {number} - expected jitter of the ping (in milliseconds)
     ======================================================================== */
-    get ExpectedStdDev() {
-        return this._expected_stdev;
+    get ExpectedJitter() {
+        return this._expected_jitter;
     }
 
 /*  ========================================================================
@@ -1390,7 +1398,7 @@ class NetworkTarget extends EventEmitter {
             // Spawn a 'ping' to determine the performance of the network target
             const ping = new SpawnHelper();
             ping.on('complete', this._CB__ping);
-            ping.Spawn({ command:'ping', arguments:[`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, '-q', this.TargetDestination] });
+            ping.Spawn({ command:'ping', arguments:[`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, this.TargetDestination] });
 
             // Update the delay
             delay = this.PingPeriod * CONVERT_SEC_TO_MS;
@@ -1418,8 +1426,8 @@ class NetworkTarget extends EventEmitter {
         // Default values used for publishing to listeners
         let err             = true;
         // Map for tracking which buffers to trim (from the left)
-        let removeOld = new Map([[DATA_BUFFER_TYPES.TIME,  true],
-                                 [DATA_BUFFER_TYPES.STDEV, true],
+        let removeOld = new Map([[DATA_BUFFER_TYPES.LATENCY,  true],
+                                 [DATA_BUFFER_TYPES.JITTER, true],
                                  [DATA_BUFFER_TYPES.LOSS,  true]]);
 
         if (response.valid &&
@@ -1428,57 +1436,64 @@ class NetworkTarget extends EventEmitter {
 
             // Parse the results
             // -------------------
-            // Find the statistics
-            const STATS_TAG = 'ping statistics';
+            // Find the raw ping data and statistics
+            const RAW_PING_SEQ_TAG = 'icmp_seq=';
+            let rawPingTime = [];
+            let rawPingLossCount = 0;
             for (let index=0; index<lines.length; index++) {
-                if (lines[index].toLowerCase().includes(STATS_TAG)) {
-
-                    // Determine if the buffers need to be purged.
-                    this._dataBuffers.forEach((value, key, map) => {
-                        if ((value.length < this._data_buffer_size)) {
-                            // Mark this buffer as not needing to be removed.
-                            removeOld.set(key, false);
-                        }
-                    });
-
-                    // We assume that the next line has the packet loss stats.
-                    if ((index + 1) < lines.length) {
-                        const packet_stats = lines[index+1].split(',');
-                        // The packet loss is in the third element
-                        if (packet_stats.length >= 3) {
-                            const PACKET_LOSS_TAG = '% packet loss';
-                            const packet_loss_tag_locn = packet_stats[2].toLowerCase().indexOf(PACKET_LOSS_TAG);
-                            if (packet_loss_tag_locn >= 0) {
-                                this._dataBuffers.get(DATA_BUFFER_TYPES.LOSS).push(Number.parseFloat(packet_stats[2].toLowerCase().slice(0, packet_loss_tag_locn)));
-                            }
-                        }
+                // Search for lines that provide raw ping results.
+                if (lines[index].toLowerCase().includes(RAW_PING_SEQ_TAG)) {
+                    const RAW_PING_TIME_PREFIX = 'time=';
+                    const RAW_PING_TIME_SUFFIX = " ms";
+                    // This is a line with a raw reading. It is assumed these come before the statistics line.
+                    const raw_ping_time_start = lines[index].indexOf(RAW_PING_TIME_PREFIX);
+                    if (raw_ping_time_start >= 0) {
+                        const raw_ping_time = lines[index].slice((raw_ping_time_start+RAW_PING_TIME_PREFIX.length), (lines[index].length-RAW_PING_TIME_SUFFIX.length));
+                        rawPingTime.push(Number.parseFloat(raw_ping_time));
                     }
-                    // The next line contains the stats (if we got any responses)
-                    if ((index + 2) < lines.length) {
-                        // Get the ping stats data.
-                        const PING_STATS_PREFIX = "round-trip min/avg/max/stddev = ";
-                        const PING_STATS_SUFFIX  = " ms";
-                        const ping_stats = lines[index+2].slice(PING_STATS_PREFIX.length, (lines[index+2].length-PING_STATS_SUFFIX.length));
-                        // Break up the data
-                        const ping_stat_data = ping_stats.split('/');
-                        // There should be 4 elements (min/avg/max/stddev)
-                        if (ping_stat_data.length === 4) {
-                            this._dataBuffers.get(DATA_BUFFER_TYPES.TIME).push(Number.parseFloat(ping_stat_data[1]));
-                            this._dataBuffers.get(DATA_BUFFER_TYPES.STDEV).push(Number.parseFloat(ping_stat_data[3]));
-                        }
-
-                        // Clear the error flag
-                        err = false;
+                    else {
+                        // The RAW_PING_TIME_PREFIX tag was not found in the raw reading. This indicates packet loss.
+                        rawPingLossCount += 1;
                     }
-
-                    // no need to keep searching.
-                    break;
                 }
+            }
+
+            // Compute and Record the Ping results.
+            const totalReadings = (rawPingLossCount + rawPingTime.length);
+            err = (totalReadings <= 0);
+            if (!err) {
+                // Compute and Record Packet Loss.
+                const loss = (rawPingLossCount / totalReadings) * 100.0;
+                this._dataBuffers.get(DATA_BUFFER_TYPES.LOSS).push(loss);
+                // Compute and Record Jitter
+                try {
+                    const jitter = this._computeJitter(rawPingTime);
+                    this._dataBuffers.get(DATA_BUFFER_TYPES.JITTER).push(jitter);
+                }
+                catch (e) {
+                    // Ignore.
+                }
+                // Compute and Record Latency
+                try {
+                    const stats = this._computeStats(rawPingTime, STANDARD_DEV_TYPE.SAMPLE);
+                    this._dataBuffers.get(DATA_BUFFER_TYPES.LATENCY).push(stats.mean);
+                }
+                catch (e) {
+                    // Ignore.
+                }
+
+                // Determine if the buffers need to be purged.
+                this._dataBuffers.forEach((value, key) => {
+                    if ((value.length < this._data_buffer_size)) {
+                        // Mark this buffer as not needing to be removed.
+                        removeOld.set(key, false);
+                    }
+                });
             }
         }
 
         // Purge old data, as needed
-        this._dataBuffers.forEach((value, key, map) => {
+        this._dataBuffers.forEach((value, key) => {
             if (removeOld.get(key)) {
                 // Purge the data. Ok if the buffer is already empty.
                 value.shift();
@@ -1488,11 +1503,11 @@ class NetworkTarget extends EventEmitter {
         // Raise an event informing interested parties of the results.
         try {
             // Get the results
-            const time  = this._computeAVT(DATA_BUFFER_TYPES.TIME);
-            const stdev = this._computeAVT(DATA_BUFFER_TYPES.STDEV);
-            const loss  = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
+            const avtLatency   = this._computeAVT(DATA_BUFFER_TYPES.LATENCY);
+            const avtJitter    = this._computeAVT(DATA_BUFFER_TYPES.JITTER);
+            const avtLoss      = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
 
-            this.emit('ready', {sender:this, error:err, packet_loss:loss, ping_time_ms:time, ping_stdev:stdev});
+            this.emit('ready', {sender:this, error:err, packet_loss:avtLoss, ping_latency_ms:avtLatency, ping_jitter:avtJitter});
         }
         catch (e) {
             _debug$1(`Error encountered raising 'ready' event. ${e}`);
@@ -1553,16 +1568,18 @@ class NetworkTarget extends EventEmitter {
 /*  ========================================================================
     Description:    Helper to compute the statistics of the data provided
 
-    @param { [number] } [data] - Array of numbers from which to compute the statistics.
+    @param { [number] } [data]          - Array of numbers from which to compute the statistics.
+    @param { STANDARD_DEV_TYPE } type   - *Optional* Type of standard deviation to compute: Population or Sample.
+                                            Defaults to Sample
 
     @return {object} - computed statistics
     @retuen {object.mean} - average of the data
     @return {object.median} - median of the data
     @return {object.stddev} - standard deviation of the data
 
-    @throws {TypeError} - Thrown if 'data' is not an array of numbers.
+    @throws {TypeError} - Thrown if 'data' is not an array of numbers or if 'type' is not valid
     ======================================================================== */
-    _computeStats(data) {
+    _computeStats(data, type) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||
             (data.length < 0)) {
@@ -1572,6 +1589,11 @@ class NetworkTarget extends EventEmitter {
             if (typeof(val) !== 'number') {
                 throw new TypeError(`data contains non-numeric items.`);
             }
+        }
+        if ((type !== undefined) &&
+            ((typeof(type) !== 'number') || (Object.values(STANDARD_DEV_TYPE).indexOf(type) < 0)))
+        {
+            throw new TypeError(`type is not an valid.`);
         }
 
         // Make a deep copy of the buffer
@@ -1601,12 +1623,13 @@ class NetworkTarget extends EventEmitter {
             }
         }
         // Compute the standard deviatiation
-        const std_dev = (theData.length > 1) ? (Math.sqrt(s/(theData.length-1))) : Number.NaN;
+        const offset = ((type === STANDARD_DEV_TYPE.POPULATION) ? 0 : 1);
+        const std_dev = (theData.length > offset) ? (Math.sqrt(s/(theData.length-offset))) : Number.NaN;
 
         // Determine the median
         // Note: Using Math.floor() biased us to not report false/premature issues/errors.
         const medianIndex = Math.floor(theData.length/2);
-        const median = theData[medianIndex];
+        const median = (theData.length > medianIndex) ? theData[medianIndex] : 0;
 
         const result = {mean:mean, stddev:std_dev, median:median, min:min, max:max, size:theData.length};
         _debug$1(`Stats Report:`);
@@ -1635,7 +1658,7 @@ class NetworkTarget extends EventEmitter {
         let buffer = [].concat(this._dataBuffers.get(buffer_type));
 
         // Compute the statistics of the data.
-        const stats = this._computeStats(buffer);
+        const stats = this._computeStats(buffer, STANDARD_DEV_TYPE.POPULATION);
 
         // Default to the median of the unfiltered stats.
         let result = stats.median;
@@ -1654,11 +1677,46 @@ class NetworkTarget extends EventEmitter {
             }
 
             // Determine the filtered result.
-            const filteredStats = this._computeStats(filteredData);
+            const filteredStats = this._computeStats(filteredData, STANDARD_DEV_TYPE.POPULATION);
             result = filteredStats.median;
         }
 
         return result;
+    }
+
+/*  ========================================================================
+    Description:    Helper to compute the jitter of the data provided
+
+    @param { [number] } [data] - Array of numbers from which to compute jitter.
+
+    @return {number} - computed jitter
+
+    @throws {TypeError} - Thrown if 'data' is not an array of numbers.
+
+    @remarks - Data is assumed to be the latency.
+    ======================================================================== */
+    _computeJitter(data) {
+        // Validate arguments
+        if ((data === undefined) || (!Array.isArray(data)) ||
+            (data.length <= 0)) {
+            throw new TypeError(`data is not an array of numbers or there is not enough data.`);
+        }
+        for (const val of data) {
+            if (typeof(val) !== 'number') {
+                throw new TypeError(`data contains non-numeric items.`);
+            }
+        }
+
+        let sum = 0;
+        for (let index=1; index < data.length; index++) {
+            // Sum the difference
+            sum += Math.abs(data[index] - data[index-1]);
+        }
+
+        // Compute the jitter
+        const jitter = ((data.length > 1) ? (sum / (data.length - 1)) : 0 );
+
+        return jitter;
     }
 }
 
@@ -1675,13 +1733,16 @@ const PLUGIN_NAME   = config_info.plugin;
 const PLATFORM_NAME = config_info.platform;
 
 // Internal Constants
-const ACCESSORY_VERSION = 1;
+// History:
+//      v1: Initial Release
+//      v2: Latency and Jitter
+const ACCESSORY_VERSION = 2;
 
 const SERVICE_INFO = {
-    POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,        udst:`PingControl`},
-    TIME    : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Time`,                udst:`PingTime`,    peak:PEAK_TYPES.TIME,  data_buffer:DATA_BUFFER_TYPES.TIME,  alert_mask: ALERT_BITMASK.TIME},
-    STDDEV  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Standard Deviation`,  udst:`PingStdDev`,  peak:PEAK_TYPES.STDEV, data_buffer:DATA_BUFFER_TYPES.STDEV, alert_mask: ALERT_BITMASK.STDEV},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,         udst:`PacketLoss`,  peak:PEAK_TYPES.LOSS,  data_buffer:DATA_BUFFER_TYPES.LOSS,  alert_mask: ALERT_BITMASK.LOSS}
+    POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,    udst:`PingControl`},
+    LATENCY : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Latency`,         udst:`PingLatency`, peak:PEAK_TYPES.LATENCY,    data_buffer:DATA_BUFFER_TYPES.LATENCY,  alert_mask: ALERT_BITMASK.LATENCY},
+    JITTER  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Jitter`,          udst:`PingJitter`,  peak:PEAK_TYPES.JITTER,     data_buffer:DATA_BUFFER_TYPES.JITTER,   alert_mask: ALERT_BITMASK.JITTER},
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:PEAK_TYPES.LOSS,       data_buffer:DATA_BUFFER_TYPES.LOSS,     alert_mask: ALERT_BITMASK.LOSS}
 };
 
 // Accessory must be created from PlatformAccessory Constructor
@@ -1702,7 +1763,7 @@ var main = (homebridgeAPI) => {
 
     // Accessory must be created from PlatformAccessory Constructor
     _PlatformAccessory  = homebridgeAPI.platformAccessory;
-    if (!_PlatformAccessory.hasOwnProperty('PlatformAccessoryEvent')) {
+    if (!Object.prototype.hasOwnProperty.call(_PlatformAccessory, "PlatformAccessoryEvent")) {
         // Append the PlatformAccessoryEvent.IDENTITY enum to the platform accessory reference.
         // This allows us to not need to import anything from 'homebridge'.
         const platformAccessoryEvent = {
@@ -1746,7 +1807,7 @@ class NetworkPerformanceMonitorPlatform {
         this._name = this._config['name'];
 
         let theSettings = undefined;
-        if (this._config.hasOwnProperty('settings')) {
+        if (Object.prototype.hasOwnProperty.call(this._config, 'settings')) {
             // Get the system configuration,
             theSettings = this._config.settings;
         }
@@ -1772,24 +1833,24 @@ class NetworkPerformanceMonitorPlatform {
         if (theSettings != undefined) {
             let commonTargetConfig = {};
             /* Get the ping count */
-            if ((theSettings.hasOwnProperty('ping_count')) && (typeof(theSettings.ping_count) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_count')) && (typeof(theSettings.ping_count) === 'number')) {
                 commonTargetConfig.ping_count = theSettings.ping_count;
             }
             /* Get the packet size */
-            if ((theSettings.hasOwnProperty('packet_size')) && (typeof(theSettings.packet_size) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'packet_size')) && (typeof(theSettings.packet_size) === 'number')) {
                 commonTargetConfig.packet_size = theSettings.packet_size;
             }
             /* Get the ping period */
-            if ((theSettings.hasOwnProperty('ping_period')) && (typeof(theSettings.ping_period) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_period')) && (typeof(theSettings.ping_period) === 'number')) {
                 commonTargetConfig.ping_period = theSettings.ping_period;
             }
             /* Get the ping interval */
-            if ((theSettings.hasOwnProperty('ping_interval')) && (typeof(theSettings.ping_interval) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_interval')) && (typeof(theSettings.ping_interval) === 'number')) {
                 commonTargetConfig.ping_interval = theSettings.ping_interval;
             }
 
             /* Ping Target Specific configuration settings */
-            if ((theSettings.hasOwnProperty('ping_targets')) && (Array.isArray(theSettings.ping_targets))) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_targets')) && (Array.isArray(theSettings.ping_targets))) {
 
                 for (const itemConfig of  theSettings.ping_targets) {
                     // Start with the common configs.
@@ -1797,35 +1858,35 @@ class NetworkPerformanceMonitorPlatform {
 
                     if (typeof(itemConfig) === 'object') {
                         /* Get the Target Type */
-                        if ((itemConfig.hasOwnProperty('target_type')) && (typeof(itemConfig.target_type) === 'string')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_type')) && (typeof(itemConfig.target_type) === 'string')) {
                             targetConfig.target_type = itemConfig.target_type;
                         }
                         /* Get the Target Destination */
-                        if ((itemConfig.hasOwnProperty('target_dest')) && (typeof(itemConfig.target_dest) === 'string')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_dest')) && (typeof(itemConfig.target_dest) === 'string')) {
                             targetConfig.target_dest = itemConfig.target_dest;
                         }
-                        /* Get the nominal ping time */
-                        if ((itemConfig.hasOwnProperty('expected_nominal')) && (typeof(itemConfig.expected_nominal) === 'number')) {
-                            targetConfig.expected_nominal = itemConfig.expected_nominal;
+                        /* Get the nominal ping latency */
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_latency')) && (typeof(itemConfig.expected_latency) === 'number')) {
+                            targetConfig.expected_latency = itemConfig.expected_latency;
                         }
                         /* Get the nominal ping stamdard deviation */
-                        if ((itemConfig.hasOwnProperty('expected_stdev')) && (typeof(itemConfig.expected_stdev) === 'number')) {
-                            targetConfig.expected_stdev = itemConfig.expected_stdev;
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_jitter')) && (typeof(itemConfig.expected_jitter) === 'number')) {
+                            targetConfig.expected_jitter = itemConfig.expected_jitter;
                         }
                         /* Get the packet loss limit */
-                        if ((itemConfig.hasOwnProperty('loss_limit')) && (typeof(itemConfig.loss_limit) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'loss_limit')) && (typeof(itemConfig.loss_limit) === 'number')) {
                             targetConfig.loss_limit = itemConfig.loss_limit;
                         }
                         /* Get the peak reset time (hr) */
-                        if ((itemConfig.hasOwnProperty('peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
                             targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
                         /* Get the data filter time window (sec) */
-                        if ((itemConfig.hasOwnProperty('data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
                             targetConfig.data_filter_time_window = itemConfig.data_filter_time_window;
                         }
                         /* Get the sensor alert mask */
-                        if ((itemConfig.hasOwnProperty('sensor_alert_mask')) && (typeof(itemConfig.sensor_alert_mask) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'sensor_alert_mask')) && (typeof(itemConfig.sensor_alert_mask) === 'number')) {
                             targetConfig.alert_mask = itemConfig.sensor_alert_mask;
                         }
 
@@ -1855,6 +1916,7 @@ class NetworkPerformanceMonitorPlatform {
     @param {object} [options]  - Typically containing a "cleanup" or "exit" member.
     @param {object} [err]      - The source of the event trigger.
     ======================================================================== */
+    // eslint-disable-next-line no-unused-vars
     async _destructor(options, err) {
         // Is there an indication that the system is either exiting or needs to
         // be cleaned up?
@@ -1897,7 +1959,7 @@ class NetworkPerformanceMonitorPlatform {
             // Flush any accessories that are not from this version or are orphans (no corresponding network performance target).
             const accessoriesToRemove = [];
             for (const accessory of this._accessories.values()) {
-                if (!accessory.context.hasOwnProperty('VERSION') ||
+                if (!Object.prototype.hasOwnProperty.call(accessory.context, 'VERSION') ||
                     (accessory.context.VERSION !== ACCESSORY_VERSION)) {
                     this._log(`Accessory ${accessory.displayName} has accessory version ${accessory.context.VERSION}. Version ${ACCESSORY_VERSION} is expected.`);
                     // This accessory needs to be replaced.
@@ -1942,27 +2004,27 @@ class NetworkPerformanceMonitorPlatform {
     Description: Event handler for the Ping Ready event
 
     @param {object} [results] - Ping 'readt' event results.
-    @event_param {<NetworkTarget>} [results.sender]      - Reference to the sender of the event.
-    @event_param {boolean}         [results.error]       - Flag indicating is there is an error with the ping.
-    @event_param {number}          [results.packet_loss] - Packet Loss (percent)
-    @event_param {number}          [results.ping_time_ms]- Ping Time (average) in milliseconds.
-    @event_param {number}          [results.ping_stdev]  - Standard Deviation of the ping times.
+    @event_param {<NetworkTarget>} [results.sender]         - Reference to the sender of the event.
+    @event_param {boolean}         [results.error]          - Flag indicating is there is an error with the ping.
+    @event_param {number}          [results.packet_loss]    - Packet Loss (percent)
+    @event_param {number}          [results.ping_latency_ms]- Ping Latency in milliseconds.
+    @event_param {number}          [results.ping_sjitter    - Ping Jitter in milliseconds.
 
     @throws {TypeError}  - thrown if the 'results' is not an object having the expected values.
     @throws {Error}      - thrown if there is no accessory with a matching id as the sender.
     ======================================================================== */
     _processPingReady(results) {
         if ((results === undefined) || (typeof(results) !== 'object')                               ||
-            (!results.hasOwnProperty('sender')) || !(results.sender instanceof NetworkTarget)      ||
-            (!results.hasOwnProperty('error')) || (typeof(results.error) !== 'boolean')             ||
-            (!results.hasOwnProperty('packet_loss')) || (typeof(results.packet_loss) !== 'number')  ||
-            (!results.hasOwnProperty('ping_time_ms')) || (typeof(results.ping_time_ms) !== 'number')||
-            (!results.hasOwnProperty('ping_stdev')) || (typeof(results.ping_stdev) !== 'number')      ) {
+            (!Object.prototype.hasOwnProperty.call(results, 'sender')) || !(results.sender instanceof NetworkTarget)      ||
+            (!Object.prototype.hasOwnProperty.call(results, 'error')) || (typeof(results.error) !== 'boolean')             ||
+            (!Object.prototype.hasOwnProperty.call(results, 'packet_loss')) || (typeof(results.packet_loss) !== 'number')  ||
+            (!Object.prototype.hasOwnProperty.call(results, 'ping_latency_ms')) || (typeof(results.ping_latency_ms) !== 'number')||
+            (!Object.prototype.hasOwnProperty.call(results, 'ping_jitter')) || (typeof(results.ping_jitter) !== 'number')      ) {
             const errText = (results === undefined) ? 'undefined' : results.toString();
             throw new TypeError(`Ping 'ready' results are invalid: ${errText}`);
         }
 
-        this._log.debug(`Ping results: Target:${results.sender.TargetDestination} Error:${results.error} Loss:${results.packet_loss} Time:${results.ping_time_ms} StDev:${results.ping_stdev}`);
+        this._log.debug(`Ping results: Target:${results.sender.TargetDestination} Error:${results.error} Loss:${results.packet_loss} Latency:${results.ping_latency_ms} Jitter:${results.ping_jitter}`);
 
         // Update the accessory with the data provided.
         // Get the id for the accessory
@@ -1972,25 +2034,25 @@ class NetworkPerformanceMonitorPlatform {
             const accessory = this._accessories.get(id);
             if (accessory !== undefined) {
                 // Get the buffer filled flags.
-                const timeBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.TIME.data_buffer);
-                const stdevBufferFilled = results.sender.IsBufferFilled(SERVICE_INFO.STDDEV.data_buffer);
-                const lossBufferFilled  = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
+                const latencyBufferFilled   = results.sender.IsBufferFilled(SERVICE_INFO.LATENCY.data_buffer);
+                const jitterBufferFilled     = results.sender.IsBufferFilled(SERVICE_INFO.JITTER.data_buffer);
+                const lossBufferFilled      = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
 
                 // Compute the fault statuses
-                const threshold  = (3.0*results.sender.ExpectedStdDev);
-                const timeFault  = (results.error || (timeBufferFilled  && (results.ping_time_ms > (results.sender.ExpectedNominal + threshold))));
-                const stdevFault = (results.error || (stdevBufferFilled && (results.ping_stdev > results.sender.ExpectedStdDev)));
-                const lossFault  = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
+                const threshold     = (3.0*results.sender.ExpectedJitter);
+                const latencyFault  = (results.error || (latencyBufferFilled  && (results.ping_latency_ms > (results.sender.ExpectedJitter + threshold))));
+                const jitterFault   = (results.error || (jitterBufferFilled && (results.ping_jitter > results.sender.ExpectedJitter)));
+                const lossFault     = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
 
                 // Determine if the peaks have expired.
-                const resetPeakTime     = results.sender.IsPeakExpired(SERVICE_INFO.TIME.peak);
-                const resetPeakStdDev   = results.sender.IsPeakExpired(SERVICE_INFO.STDDEV.peak);
+                const resetPeakLatency  = results.sender.IsPeakExpired(SERVICE_INFO.LATENCY.peak);
+                const resetPeakJitter   = results.sender.IsPeakExpired(SERVICE_INFO.JITTER.peak);
                 const resetPeakLoss     = results.sender.IsPeakExpired(SERVICE_INFO.LOSS.peak);
 
                 // Update the values.
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:results.ping_time_ms, fault:timeFault,  resetPeak:resetPeakTime,     active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:results.ping_stdev,   fault:stdevFault, resetPeak:resetPeakStdDev,   active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,  fault:lossFault,  resetPeak:resetPeakLoss,     active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY,{level:results.ping_latency_ms, fault:latencyFault, resetPeak:resetPeakLatency, active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.JITTER, {level:results.ping_jitter,     fault:jitterFault,  resetPeak:resetPeakJitter,  active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,     fault:lossFault,    resetPeak:resetPeakLoss,    active:true});
             }
         }
         else {
@@ -2024,7 +2086,7 @@ class NetworkPerformanceMonitorPlatform {
             }
             catch (error)
             {
-                this._log(`Unable to configure accessory ${accessory.displayName}. Version:${accessory.context.VERSION}`);
+                this._log(`Unable to configure accessory ${accessory.displayName}. Version:${accessory.context.VERSION}. Error:${error}`);
                 // We don't know where the exception happened. Ensure that the accessory is in the map.
                 const id = accessory.context.ID;
                 if (!this._accessories.has(id)){
@@ -2079,8 +2141,8 @@ class NetworkPerformanceMonitorPlatform {
 
         // Create our services.
         accessory.addService(_hap.Service.Switch,               SERVICE_INFO.POWER.uuid,   SERVICE_INFO.POWER.udst);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.TIME.uuid,    SERVICE_INFO.TIME.udst);
-        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.STDDEV.uuid,  SERVICE_INFO.STDDEV.udst);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.LATENCY.uuid, SERVICE_INFO.LATENCY.udst);
+        accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.JITTER.uuid,  SERVICE_INFO.JITTER.udst);
         accessory.addService(_hap.Service.CarbonDioxideSensor,  SERVICE_INFO.LOSS.uuid,    SERVICE_INFO.LOSS.udst);
 
         try {
@@ -2130,7 +2192,7 @@ class NetworkPerformanceMonitorPlatform {
             const theSettings = accessory.context.SETTINGS;
             if ((theSettings !== undefined) &&
                 (typeof(theSettings) === 'object') &&
-                (theSettings.hasOwnProperty('SwitchState') &&
+                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState') &&
                 (typeof(theSettings.SwitchState) === 'boolean'))) {
                 // Modify the settings
                 switchState = theSettings.SwitchState;
@@ -2145,7 +2207,7 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Update the names of each service.
-        const infoItems = [SERVICE_INFO.TIME, SERVICE_INFO.STDDEV, SERVICE_INFO.LOSS];
+        const infoItems = [SERVICE_INFO.LATENCY, SERVICE_INFO.JITTER, SERVICE_INFO.LOSS];
         for (const name_info of infoItems) {
             const service = accessory.getServiceById(name_info.uuid, name_info.udst);
             if (service !== undefined) {
@@ -2154,8 +2216,8 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Initialize the Carbon Dioxide Sensors
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.TIME,   {level:0.0, fault:false, resetPeak:true, active:switchState});
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.STDDEV, {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LATENCY,{level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.JITTER, {level:0.0, fault:false, resetPeak:true, active:switchState});
         this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LOSS,   {level:0.0, fault:false, resetPeak:true, active:switchState});
 
         // Update the accessory information
@@ -2199,20 +2261,20 @@ class NetworkPerformanceMonitorPlatform {
         }
         if ((serviceInfo === undefined) ||
             (typeof(serviceInfo) != 'object') ||
-            (!serviceInfo.hasOwnProperty('uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0)        ) ||
-            (!serviceInfo.hasOwnProperty('data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) ) ||
-            (!serviceInfo.hasOwnProperty('alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   )
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   )
         {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
         if ((values === undefined) || (typeof(values) !== 'object') ||
-            (!values.hasOwnProperty('level'))     || ((typeof(values.level) !== 'number')       || (values.level instanceof Error)) ||
-            (!values.hasOwnProperty('fault'))     || ((typeof(values.fault) !== 'boolean')      || (values.fault instanceof Error)) ||
-            (!values.hasOwnProperty('active'))    || ((typeof(values.active) !== 'boolean')     || (values.active instanceof Error)) ||
-            (!values.hasOwnProperty('resetPeak')) || ((typeof(values.resetPeak) !== 'boolean')  || (values.resetPeak instanceof Error)) ) {
+            (!Object.prototype.hasOwnProperty.call(values, 'level'))     || ((typeof(values.level) !== 'number')       || (values.level instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(values, 'fault'))     || ((typeof(values.fault) !== 'boolean')      || (values.fault instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(values, 'active'))    || ((typeof(values.active) !== 'boolean')     || (values.active instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(values, 'resetPeak')) || ((typeof(values.resetPeak) !== 'boolean')  || (values.resetPeak instanceof Error)) ) {
             throw new TypeError(`values must be an object with properties named 'level' (number or Error) and 'fault' (boolean or Error) and 'resetPeak' (boolean or Error)`);
         }
 
@@ -2255,7 +2317,7 @@ class NetworkPerformanceMonitorPlatform {
         }
         else {
             this._log.debug(`No service: Accessory ${accessory.displayName}`);
-            throw new Error(`Accessory ${accessory.displayName} does not have a valid ${serviceInfo} service`);
+            throw new Error(`Accessory ${accessory.displayName} does not have a valid ${serviceInfo.uuid}:${serviceInfo.udst} service`);
         }
     }
 
@@ -2315,8 +2377,8 @@ class NetworkPerformanceMonitorPlatform {
             throw new TypeError(`Accessory must be a PlatformAccessory`);
         }
         if ((info === undefined) ||
-            (!info.hasOwnProperty('model'))     || ((typeof(info.model)      !== 'string') || (info.model instanceof Error)) ||
-            (!info.hasOwnProperty('serialnum')) || ((typeof(info.serialnum)  !== 'string') || (info.serialnum instanceof Error))   ) {
+            (!Object.prototype.hasOwnProperty.call(info, 'model'))     || ((typeof(info.model)      !== 'string') || (info.model instanceof Error)) ||
+            (!Object.prototype.hasOwnProperty.call(info, 'serialnum')) || ((typeof(info.serialnum)  !== 'string') || (info.serialnum instanceof Error))   ) {
             throw new TypeError(`info must be an object with properties named 'model' and 'serialnum' that are eother strings or Error`);
         }
 
@@ -2409,7 +2471,7 @@ class NetworkPerformanceMonitorPlatform {
             let theSettings = accessory.context.SETTINGS;
             if ((theSettings !== undefined) &&
                 (typeof(theSettings) === 'object') &&
-                (theSettings.hasOwnProperty('SwitchState')) &&
+                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState')) &&
                 (typeof(theSettings.SwitchState) === 'boolean')) {
                 // Modify the settings
                 theSettings.SwitchState = value;
@@ -2424,8 +2486,8 @@ class NetworkPerformanceMonitorPlatform {
                     if (target !== undefined) {
                         // Update/reinitialize the accessory data (including the peak, as needed)
                         const theLevel = (value ? 0.0 : -1.0);
-                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.TIME,   {level:theLevel, fault:false, resetPeak:value, active:value});
-                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.STDDEV, {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY,{level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.JITTER, {level:theLevel, fault:false, resetPeak:value, active:value});
                         this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:theLevel, fault:false, resetPeak:value, active:value});
 
                         if (value) {

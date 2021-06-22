@@ -3,6 +3,15 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+## [1.4.0] 2021-JUNE-21
+### What's new
+- [Issue #17](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/17): Updated to use more appropriate names and data for the network performance sensors. Specifically, the `Time` sensor was renamed to `Latency`. Additionally the `Standard Deviation` sensor was removed and replaced with a `Jitter` sensor.
+
+Please note that this version is a breaking change with regard to prior configuration settings. Please verify configuration settings for all existing network performance targets. Refer to [ReadMe](./ReadMe.md)
+- `expected_nominal` has been replaced with `expected_latency`
+- `expected_stdev` has been replaced with `expected_jitter`
+
+---
 ## [1.3.3] (beta) - 2021-MAY-29
 ### What's new
 - [Issue #3](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/3): Added validation for the Target Destination configuration setting, ensuring it matches the Target Type. If you find any issues with the validation please submit a bug [here](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues).
