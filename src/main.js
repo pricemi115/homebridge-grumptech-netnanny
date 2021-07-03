@@ -397,8 +397,13 @@ class NetworkPerformanceMonitorPlatform {
     @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
     ======================================================================== */
     configureAccessory(accessory) {
+        // Validate the argument(s)
+        if ((accessory === undefined) ||
+            (!(accessory instanceof _PlatformAccessory))) {
+            throw new TypeError(`accessory must be a PlatformAccessory`);
+        }
 
-        // This application has no need for history of the accessory data..
+        // TIs this accessory already regiaterd?
         let found = false;
         for (const acc of this._accessories.values()) {
             if (acc === accessory) {
