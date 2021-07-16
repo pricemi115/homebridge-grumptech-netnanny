@@ -97,5 +97,4 @@ Many thanks to all the folks contributing to [Homebridge](https://homebridge.io)
 Special thanks to [Dave Hamilton's](https://twitter.com/DaveHamilton), [John F. Braun](https://twitter.com/johnfbraun), and the [MacGeekGab](https://twitter.com/MacObserver) podcast for inspiring the idea for this plugin.
 
 ## License
-
 Refer to [LICENSE.md](./LICENSE.md) for information regarding licensincg of this source code.
