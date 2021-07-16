@@ -403,7 +403,7 @@ class NetworkPerformanceMonitorPlatform {
             throw new TypeError(`accessory must be a PlatformAccessory`);
         }
 
-        // TIs this accessory already regiaterd?
+        // Is this accessory already registered?
         let found = false;
         for (const acc of this._accessories.values()) {
             if (acc === accessory) {
@@ -531,6 +531,9 @@ class NetworkPerformanceMonitorPlatform {
                 switchState = theSettings.SwitchState;
             }
             serviceSwitch.updateCharacteristic(_hap.Characteristic.On, switchState);
+
+            // Also update the name, so it is recognizable in the Home app
+            serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, `Power (${accessory.displayName})`);
 
             const charOn = serviceSwitch.getCharacteristic(_hap.Characteristic.On);
             // Register for the "get" event notification.
