@@ -16,14 +16,12 @@ function _interopNamespace(e) {
         var d = Object.getOwnPropertyDescriptor(e, k);
         Object.defineProperty(n, k, d.get ? d : {
           enumerable: true,
-          get: function () {
-            return e[k];
-          }
+          get: function () { return e[k]; }
         });
       }
     });
   }
-  n['default'] = e;
+  n["default"] = e;
   return Object.freeze(n);
 }
 
@@ -1123,7 +1121,7 @@ class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.URI:
             {
                 // Ensure that the destination in indeed a URI/URL.
-                if (!_VALIDATOR__default['default'].isURL(this.TargetDestination)) {
+                if (!_VALIDATOR__default["default"].isURL(this.TargetDestination)) {
                     throw new RangeError(`Target Destination is not a URI/URL. ${this.TargetDestination}`);
                 }
             }
@@ -1132,7 +1130,7 @@ class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.IPV4:
             {
                 // Ensure that the destination in indeed an IPV4.
-                if (!_VALIDATOR__default['default'].isIP(this.TargetDestination, _VALIDATOR__default['default'].IPV4)) {
+                if (!_VALIDATOR__default["default"].isIP(this.TargetDestination, _VALIDATOR__default["default"].IPV4)) {
                     throw new RangeError(`Target Destination is not an IPV4. ${this.TargetDestination}`);
                 }
             }
@@ -1141,7 +1139,7 @@ class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.IPV6:
             {
                 // Ensure that the destination in indeed an IPV6.
-                if (!_VALIDATOR__default['default'].isIP(this.TargetDestination, _VALIDATOR__default['default'].IPV6)) {
+                if (!_VALIDATOR__default["default"].isIP(this.TargetDestination, _VALIDATOR__default["default"].IPV6)) {
                     throw new RangeError(`Target Destination is not an IPV6. ${this.TargetDestination}`);
                 }
             }
@@ -2455,7 +2453,7 @@ class NetworkPerformanceMonitorPlatform {
  /* ========================================================================
     Description: Event handler for the "set" event for the Switch.On characteristic.
 
-    @param {stirng} [id] - identification of the accessory being commanded.
+    @param {string} [id] - identification of the accessory being commanded.
     @param {bool} [value] - new/rewuested state of the switch
     @param {function} [callback] - Function callback for homebridge.
 
@@ -2561,4 +2559,4 @@ class NetworkPerformanceMonitorPlatform {
     }
 }
 
-exports.default = main;
+exports["default"] = main;

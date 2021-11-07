@@ -3,6 +3,12 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+## [1.4.2] 2021-NOV-07
+### Fixes
+- [Issue #31](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/31): Documentation updates
+- [Issue #32](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/32): Update dependencies to resovle CVE-2021-3765
+
+---
 ## [1.4.1] 2021-JULY-15
 ### Fixes
 - [Issue #28](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/28): Set the name for the power switch service so that it is descernable when viewing in the Home application.
