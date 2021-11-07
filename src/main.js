@@ -783,7 +783,7 @@ class NetworkPerformanceMonitorPlatform {
  /* ========================================================================
     Description: Event handler for the "set" event for the Switch.On characteristic.
 
-    @param {stirng} [id] - identification of the accessory being commanded.
+    @param {string} [id] - identification of the accessory being commanded.
     @param {bool} [value] - new/rewuested state of the switch
     @param {function} [callback] - Function callback for homebridge.
 
