@@ -188,22 +188,15 @@ export class SpawnHelper extends EventEmitter {
 
         // Validate 'optional' options request
         if (Object.prototype.hasOwnProperty.call(request, 'options')) {
-            if (!Array.isArray(request.options)) {
-                throw new TypeError('request.options must be an array of strings.');
-            }
-            else {
-                for (const arg of request.options) {
-                    if (typeof(arg) !== 'string') {
-                        throw new TypeError('request.options must contain only strings.');
-                    }
-                }
+            if (typeof(request.options) !== 'object') {
+                throw new TypeError('request.options must be an object.');
             }
             // If we got this far, then request.options must be legit
             this._options = request.options;
         }
         else {
             // Use default
-            this._options = [];
+            this._options = undefined;
         }
 
         // Reset the internal data
@@ -212,18 +205,23 @@ export class SpawnHelper extends EventEmitter {
         this._error_encountered = false;
         this._pending           = true;  // Think positive :)
 
-        // Spawn the request
-        const childProcess = spawn(this._command, this._arguments, this._options);
-        // Register for the stdout.data notifications
-        childProcess.stdout.on('data', this._CB__process_stdout_data);
-        // Register for the stderr.data notifications
-        childProcess.stderr.on('data', this._CB__process_stderror_data);
-        // Register for the message notification
-        childProcess.on('message', this._CB_process_message);
-        // Register for the error notification
-        childProcess.on('error', this._CB_process_error );
-        // Register for the close notification
-        childProcess.on('close', this._CB_process_close);
+        try {
+            // Spawn the request
+            const childProcess = spawn(this._command, this._arguments, this._options);
+            // Register for the stdout.data notifications
+            childProcess.stdout.on('data', this._CB__process_stdout_data);
+            // Register for the stderr.data notifications
+            childProcess.stderr.on('data', this._CB__process_stderror_data);
+            // Register for the message notification
+            childProcess.on('message', this._CB_process_message);
+            // Register for the error notification
+            childProcess.on('error', this._CB_process_error );
+            // Register for the close notification
+            childProcess.on('close', this._CB_process_close);
+        }
+        catch (ex) {
+            _debug(`Error initiating spawn. '${ex}'`);
+        }
     }
 
  /* ========================================================================
