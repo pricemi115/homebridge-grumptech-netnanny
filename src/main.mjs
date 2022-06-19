@@ -3,13 +3,6 @@
    Description:	       Homebridge integration for Net Nanny
    Copyright:          Mar 2021
    ========================================================================== */
-'use strict';
-
-const _debug = require('debug')('homebridge');
-// eslint-disable-next-line no-unused-vars
-import { version as PLUGIN_VER }      from '../package.json';
-import { config_info as CONFIG_INFO } from '../package.json';
-
 /*
  * IMPORTANT NOTICE
  *
@@ -52,11 +45,30 @@ import {
 import { NetworkTarget as _NetworkTarget,
          PEAK_TYPES as _TARGET_PEAK_TYPES,
          DATA_BUFFER_TYPES as _TARGET_DATA_BUFFER_TYPES,
-         ALERT_BITMASK as _TARGET_ALERT_BITMASK } from './networkTarget.js';
+         ALERT_BITMASK as _TARGET_ALERT_BITMASK } from './networkTarget.mjs';
 
-// Configuration constants.
-const PLUGIN_NAME   = CONFIG_INFO.plugin;
-const PLATFORM_NAME = CONFIG_INFO.platform;
+// External dependencies and imports.
+import _debugModule from 'debug';
+import {readFileSync as _readFileSync} from 'fs';
+import {fileURLToPath as _fileURLToPath} from 'url';
+import {join as _join, dirname as _dirname} from 'path';
+
+/**
+ * @description Absolute path to this script file.
+ * @private
+ */
+const __filename = _fileURLToPath(import.meta.url);
+/**
+ * @description Absolute path to the folder of this script file.
+ * @private
+ */
+const __dirname = _dirname(__filename);
+
+/**
+ * @private
+ * @description Debugging function pointer for runtime related diagnostics.
+ */
+ const _debug = _debugModule('homebridge');
 
 // Internal Constants
 // History:
@@ -70,6 +82,11 @@ const SERVICE_INFO = {
     JITTER  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Jitter`,          udst:`PingJitter`,  peak:_TARGET_PEAK_TYPES.JITTER,     data_buffer:_TARGET_DATA_BUFFER_TYPES.JITTER,   alert_mask: _TARGET_ALERT_BITMASK.JITTER},
     LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS}
 }
+
+/**
+ * @description Package Information
+ */
+ let _PackageInfo;
 
 // Accessory must be created from PlatformAccessory Constructor
 let _PlatformAccessory  = undefined;
@@ -87,6 +104,9 @@ let _hap                = undefined;
 export default (homebridgeAPI) => {
     _debug(`homebridge API version: v${homebridgeAPI.version}`);
 
+    // Get the package information.
+    _PackageInfo = _getPackageInfo();
+
     // Accessory must be created from PlatformAccessory Constructor
     _PlatformAccessory  = homebridgeAPI.platformAccessory;
     if (!Object.prototype.hasOwnProperty.call(_PlatformAccessory, "PlatformAccessoryEvent")) {
@@ -103,8 +123,8 @@ export default (homebridgeAPI) => {
     _hap                = homebridgeAPI.hap;
 
     // Register the paltform.
-    _debug(`Registering platform: ${PLATFORM_NAME}`);
-    homebridgeAPI.registerPlatform(PLATFORM_NAME, NetworkPerformanceMonitorPlatform);
+    _debug(`Registering platform: ${_PackageInfo.CONFIG_INFO.platform}`);
+    homebridgeAPI.registerPlatform(_PackageInfo.CONFIG_INFO.platform, NetworkPerformanceMonitorPlatform);
 };
 
 /* ==========================================================================
@@ -282,7 +302,7 @@ class NetworkPerformanceMonitorPlatform {
             setTimeout(this._doInitialization.bind(this), 100);
         }
         else {
-            this._log(`Homebridge Plug-In ${PLATFORM_NAME} has finished launching.`);
+            this._log(`Homebridge Plug-In ${_PackageInfo.CONFIG_INFO.plugin} has finished launching.`);
 
             // Flush any accessories that are not from this version or are orphans (no corresponding network performance target).
             const accessoriesToRemove = [];
@@ -487,7 +507,7 @@ class NetworkPerformanceMonitorPlatform {
             this._log.debug(error);
         }
 
-        this._api.registerPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this._api.registerPlatformAccessories(_PackageInfo.CONFIG_INFO.plugin, _PackageInfo.CONFIG_INFO.platform, [accessory]);
    }
 
  /* ========================================================================
@@ -689,7 +709,7 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         /* Unregister the accessory */
-        this._api.unregisterPlatformAccessories(PLUGIN_NAME, PLATFORM_NAME, [accessory]);
+        this._api.unregisterPlatformAccessories(_PackageInfo.CONFIG_INFO.plugin, _PackageInfo.CONFIG_INFO.platform, [accessory]);
         /* remove the accessory from our mapping */
         this._accessories.delete(accessory.context.ID);
     }
@@ -887,4 +907,18 @@ class NetworkPerformanceMonitorPlatform {
 
         return result;
     }
+}
+
+/**
+ * @description Helper to get the information of interest from the package.json file.
+ * @returns {object} Data of interest.
+ */
+ function _getPackageInfo() {
+    const packageFilename = _join(__dirname, '../package.json');
+    const rawContents = _readFileSync(packageFilename);
+    const parsedData = JSON.parse(rawContents);
+
+    const pkgInfo = {CONFIG_INFO: parsedData.config_info, PLUGIN_VER: parsedData.version};
+
+    return pkgInfo;
 }

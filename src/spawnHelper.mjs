@@ -4,12 +4,17 @@
    Description:	       Wrapper for managing spawned tasks.
    Copyright:          Dec 2020
    ========================================================================== */
-'use strict';
 
-// External dependencies and imports.
-const _debug    = require('debug')('spawn_helper');
-const { spawn } = require('child_process');
+   // External dependencies and imports.
+import _debugModule from 'debug';
+import {spawn as _spawn} from 'child_process';
 import EventEmitter from 'events';
+
+/**
+ * @description Debugging function pointer for runtime related diagnostics.
+ * @private
+ */
+ const _debug = _debugModule('spawn_helper');
 
 // Bind debug to console.log
 _debug.log = console.log.bind(console);
@@ -207,7 +212,7 @@ export class SpawnHelper extends EventEmitter {
 
         try {
             // Spawn the request
-            const childProcess = spawn(this._command, this._arguments, this._options);
+            const childProcess = _spawn(this._command, this._arguments, this._options);
             // Register for the stdout.data notifications
             childProcess.stdout.on('data', this._CB__process_stdout_data);
             // Register for the stderr.data notifications
