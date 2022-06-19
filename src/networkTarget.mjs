@@ -5,16 +5,21 @@
                        ping results.
    Copyright:          Mar 2021
    ========================================================================== */
-'use strict';
 
-// External dependencies and imports.
-const _debug    = require('debug')('network_target');
+   // External dependencies and imports.
+import _debugModule from 'debug';
 import EventEmitter from 'events';
 import * as modCrypto from 'crypto';
 import _VALIDATOR from 'validator';
 
 // Internal dependencies.
-import { SpawnHelper } from './spawnHelper.js';
+import { SpawnHelper } from './spawnHelper.mjs';
+
+/**
+ * @description Debugging function pointer for runtime related diagnostics.
+ * @private
+ */
+ const _debug = _debugModule('network_target');
 
 // Bind debug to console.log
 _debug.log = console.log.bind(console);
