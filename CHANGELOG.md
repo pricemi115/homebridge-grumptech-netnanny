@@ -3,6 +3,11 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+## [1.4.4] 2022-JUN-19
+### Fixes
+- Resolving issue with a hard-coded path resulting in a crash on every system other than my development system. Sorry 😔
+
+---
 ## [1.4.3] 2022-JUN-19
 ### Fixes
 - [Issue #34](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/34): Fix issue regarding no ping statistics when running nodejs v16.x and higher.
