@@ -43,8 +43,8 @@ export default [
         ],
         module: {
             parser: {
-              javascript : { importMeta: false }
-            }
-        }
+                javascript: {importMeta: false},
+            },
+        },
     },
 ];

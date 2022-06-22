@@ -14,4 +14,4 @@ debug.env
 
 # Source Files
 src/
-rollup.config.js
+webpack.config.js
