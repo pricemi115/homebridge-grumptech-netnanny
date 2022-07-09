@@ -1,7 +1,7 @@
 {
   "name": "homebridge-grumptech-netnanny",
   "displayName": "Homebridge Net Nanny",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "description": "Network performance monitor.",
   "type": "module",
   "main": "dist/homebridge-grumptech-netnanny.js",
@@ -24,10 +24,11 @@
     "platform": "GrumpTechHomebridgeNetNanny"
   },
   "scripts": {
+    "clean": "setopt localoptions rmstarsilent; rm -f ./dist/*; rm -f ./docs/*",
     "prepare": "npm run build",
-    "run": "DEBUG=homebridge* homebridge -D -Q -P ./dist -U ./debug",
     "build_dbg": "npx webpack --mode=development",
-    "build": "npx webpack --mode=production"
+    "build": "npm run clean; npx webpack --mode=production",
+    "test": "NODE_OPTIONS=--experimental-vm-modules npx jest"
   },
   "engines": {
     "homebridge": ">=1.3.4"
@@ -49,14 +50,19 @@
   "author": "GrumpTech (Michael J. Price)",
   "license": "ISC",
   "devDependencies": {
-    "eslint": "^7.27.0",
-    "hap-nodejs": "^0.9.8",
-    "homebridge": "^1.3.9",
+    "eslint": "^8.19.0",
+    "eslint-config-google": "^0.14.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-jsdoc": "^39.3.3",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-promise": "^6.0.0",
+    "jest": "^28.1.2",
     "webpack": "^5.73.0",
     "webpack-cli": "^4.10.0"
   },
   "dependencies": {
-    "debug": "^4.3.1",
+    "debug": "^4.3.4",
+    "grumptech-spawn-helper": "^1.2.0",
     "validator": "^13.7.0"
   }
 }
