@@ -13,7 +13,7 @@ import * as modCrypto from 'crypto';
 import _VALIDATOR from 'validator';
 
 // Internal dependencies.
-import { SpawnHelper } from './spawnHelper.mjs';
+import { default as _SpawnHelper, SPAWN_HELPER_EVENTS as _SPAWN_HELPER_EVENTS} from 'grumptech-spawn-helper';
 
 /**
  * @description Debugging function pointer for runtime related diagnostics.
@@ -311,8 +311,8 @@ export class NetworkTarget extends EventEmitter {
             {
                 this._target_dest = '';
                 // Spawn a request to determine the address of the router.
-                const ping = new SpawnHelper();
-                ping.on('complete', this._CB__findGatewayAddr);
+                const ping = new _SpawnHelper();
+                ping.on(_SPAWN_HELPER_EVENTS.EVENT_COMPLETE, this._CB__findGatewayAddr);
                 ping.Spawn({ command:'route', arguments:[`get`, `default`] });
 
                 this._destination_pending = true;
@@ -597,8 +597,8 @@ export class NetworkTarget extends EventEmitter {
             this._pingInProgress = true;
 
             // Spawn a 'ping' to determine the performance of the network target
-            const ping = new SpawnHelper();
-            ping.on('complete', this._CB__ping);
+            const ping = new _SpawnHelper();
+            ping.on(_SPAWN_HELPER_EVENTS.EVENT_COMPLETE, this._CB__ping);
             ping.Spawn({ command:'ping', arguments:[`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, this.TargetDestination] });
 
             // Update the delay
