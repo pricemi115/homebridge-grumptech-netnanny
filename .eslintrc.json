@@ -3,11 +3,25 @@
         "es2021": true,
         "node": true
     },
-    "extends": "eslint:recommended",
+    "extends": [
+        "google",
+        "plugin:jsdoc/recommended"
+    ],
     "parserOptions": {
-        "ecmaVersion": 12,
+        "ecmaVersion": "latest",
         "sourceType": "module"
     },
+    "plugins": ["jsdoc"],
     "rules": {
+        "no-underscore-dangle": "off",
+        "no-multi-spaces": "off",
+        "indent": ["error", 4, {"SwitchCase": 1}],
+        "space-unary-ops": ["error", {"words": true, "overrides": {"typeof": false}}],
+        "brace-style": ["error", "stroustrup"],
+        "operator-linebreak": ["error", "after"],
+        "no-lone-blocks": "off",
+        "no-restricted-syntax": "off",
+        "max-len": ["error", {"code":200}],
+        "valid-jsdoc": [ "error", {"prefer": {"return":"returns"} } ]
     }
 }

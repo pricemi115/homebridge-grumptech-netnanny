@@ -1,8 +1,18 @@
-/* ==========================================================================
-   File:               main.js
-   Description:	       Homebridge integration for Net Nanny
-   Copyright:          Mar 2021
-   ========================================================================== */
+/**
+ * @description Homebridge integration for Net Nanny
+ * @copyright 2021
+ * @author Mike Price <dev.grumptech@gmail.com>
+ * @module NetNannyModule
+ * @requires debug
+ * @see {@link https://github.com/debug-js/debug#readme}
+ * @requires fs
+ * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/fs.html#file-system}
+ * @requires url
+ * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/url.html}
+ * @requires path
+ * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/path.html}
+ */
+
 /*
  * IMPORTANT NOTICE
  *
@@ -42,10 +52,13 @@ import {
 */
 
 // Internal dependencies
-import { NetworkTarget as _NetworkTarget,
-         PEAK_TYPES as _TARGET_PEAK_TYPES,
-         DATA_BUFFER_TYPES as _TARGET_DATA_BUFFER_TYPES,
-         ALERT_BITMASK as _TARGET_ALERT_BITMASK } from './networkTarget.mjs';
+/* eslint-disable indent */
+import {NetworkTarget as _NetworkTarget,
+        PEAK_TYPES as _TARGET_PEAK_TYPES,
+        DATA_BUFFER_TYPES as _TARGET_DATA_BUFFER_TYPES,
+        ALERT_BITMASK as _TARGET_ALERT_BITMASK,
+        NETWORK_TARGET_EVENTS as _NETWORK_TARGET_EVENTS} from './networkTarget.mjs';
+/* eslint-enable indent */
 
 // External dependencies and imports.
 import _debugModule from 'debug';
@@ -68,7 +81,7 @@ const __dirname = _dirname(__filename);
  * @private
  * @description Debugging function pointer for runtime related diagnostics.
  */
- const _debug = _debugModule('homebridge');
+const _debug = _debugModule('homebridge');
 
 // Internal Constants
 // History:
@@ -77,73 +90,43 @@ const __dirname = _dirname(__filename);
 const ACCESSORY_VERSION = 2;
 
 const SERVICE_INFO = {
+    /* eslint-disable key-spacing, max-len */
     POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,    udst:`PingControl`},
     LATENCY : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Latency`,         udst:`PingLatency`, peak:_TARGET_PEAK_TYPES.LATENCY,    data_buffer:_TARGET_DATA_BUFFER_TYPES.LATENCY,  alert_mask: _TARGET_ALERT_BITMASK.LATENCY},
     JITTER  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Jitter`,          udst:`PingJitter`,  peak:_TARGET_PEAK_TYPES.JITTER,     data_buffer:_TARGET_DATA_BUFFER_TYPES.JITTER,   alert_mask: _TARGET_ALERT_BITMASK.JITTER},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS}
-}
+    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS},
+    /* eslint-enable key-spacing, max-len */
+};
 
 /**
  * @description Package Information
  */
- let _PackageInfo;
+let _PackageInfo;
 
-// Accessory must be created from PlatformAccessory Constructor
+/**
+ * @description Platform accessory reference
+ * @private
+ */
 let _PlatformAccessory  = undefined;
-// Service and Characteristic are from hap-nodejs
+/**
+ * @description Reference to the NodeJS Homekit Applicaiton Platform.
+ * @private
+ */
 let _hap                = undefined;
 
-/* Default Export Function for integrating with Homebridge */
-/* ========================================================================
-   Description: Exported default function for Homebridge integration.
-
-   Parameters:  homebridge: reference to the Homebridge API.
-
-   Return:      None
-   ======================================================================== */
-export default (homebridgeAPI) => {
-    _debug(`homebridge API version: v${homebridgeAPI.version}`);
-
-    // Get the package information.
-    _PackageInfo = _getPackageInfo();
-
-    // Accessory must be created from PlatformAccessory Constructor
-    _PlatformAccessory  = homebridgeAPI.platformAccessory;
-    if (!Object.prototype.hasOwnProperty.call(_PlatformAccessory, "PlatformAccessoryEvent")) {
-        // Append the PlatformAccessoryEvent.IDENTITY enum to the platform accessory reference.
-        // This allows us to not need to import anything from 'homebridge'.
-        const platformAccessoryEvent = {
-            IDENTIFY: "identify",
-        }
-
-        _PlatformAccessory.PlatformAccessoryEvent = platformAccessoryEvent;
-    }
-
-    // Cache the reference to hap-nodejs
-    _hap                = homebridgeAPI.hap;
-
-    // Register the paltform.
-    _debug(`Registering platform: ${_PackageInfo.CONFIG_INFO.platform}`);
-    homebridgeAPI.registerPlatform(_PackageInfo.CONFIG_INFO.platform, NetworkPerformanceMonitorPlatform);
-};
-
-/* ==========================================================================
-   Class:              NetworkPerformanceMonitorPlatform
-   Description:	       Homebridge platform for managing the Network Performance Monitor
-   Copyright:          Jan 2021
-   ========================================================================== */
+/**
+ * @description Homebridge platform for managing the Net Nanny
+ * @private
+ */
 class NetworkPerformanceMonitorPlatform {
- /* ========================================================================
-    Description:    Constructor
-
-    @param {object} [log]      - Object for logging in the Homebridge Context
-    @param {object} [config]   - Object for the platform configuration (from config.json)
-    @param {object} [api]      - Object for the Homebridge API.
-
-    @return {object}  - Instance of VolumeInterrogatorPlatform
-    ======================================================================== */
+    /**
+     * @description Constructor
+     * @param {object} log - Regerence to the log for logging in the Homebridge Context
+     * @param {object} config - Reference to the platform configuration (from config.json)
+     * @param {object} api - Reference to the Homebridge API
+     * @throws {TypeError} - thrown if the configuration is invalid.
+     */
     constructor(log, config, api) {
-
         /* Cache the arguments. */
         this._log     = log;
         this._config  = config;
@@ -164,8 +147,8 @@ class NetworkPerformanceMonitorPlatform {
         /* Bind Handlers */
         this._bindDoInitialization          = this._doInitialization.bind(this);
         this._bindPingReady                 = this._processPingReady.bind(this);
-        this._bindDestructorNormal          = this._destructor.bind(this, {cleanup:true});
-        this._bindDestructorAbnormal        = this._destructor.bind(this, {exit:true});
+        this._bindDestructorNormal          = this._destructor.bind(this, {cleanup: true});
+        this._bindDestructorAbnormal        = this._destructor.bind(this, {exit: true});
 
         /* Log our creation */
         this._log(`Creating NetworkPerformanceMonitorPlatform`);
@@ -177,7 +160,7 @@ class NetworkPerformanceMonitorPlatform {
 
         // Check for Settings
         if (theSettings != undefined) {
-            let commonTargetConfig = {};
+            const commonTargetConfig = {};
             /* Get the ping count */
             if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_count')) && (typeof(theSettings.ping_count) === 'number')) {
                 commonTargetConfig.ping_count = theSettings.ping_count;
@@ -197,10 +180,9 @@ class NetworkPerformanceMonitorPlatform {
 
             /* Ping Target Specific configuration settings */
             if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_targets')) && (Array.isArray(theSettings.ping_targets))) {
-
                 for (const itemConfig of  theSettings.ping_targets) {
                     // Start with the common configs.
-                    let targetConfig = commonTargetConfig;
+                    const targetConfig = commonTargetConfig;
 
                     if (typeof(itemConfig) === 'object') {
                         /* Get the Target Type */
@@ -249,20 +231,20 @@ class NetworkPerformanceMonitorPlatform {
         this._api.on('shutdown', this._bindDestructorNormal);
 
         // Register for shutdown events.
-        //do something when app is closing
+        // do something when app is closing
         process.on('exit', this._bindDestructorNormal);
-        //catches uncaught exceptions
+        // catches uncaught exceptions
         process.on('uncaughtException', this._bindDestructorAbnormal);
-
     }
 
- /* ========================================================================
-    Description: Destructor
-
-    @param {object} [options]  - Typically containing a "cleanup" or "exit" member.
-    @param {object} [err]      - The source of the event trigger.
-    ======================================================================== */
-    // eslint-disable-next-line no-unused-vars
+    /**
+     * @description Destructor
+     * @param {object} options - Typically containing a "cleanup" or "exit" member.
+     * @param {object} err - The source of the event trigger.
+     * @returns {void}
+     * @async
+     * @private
+     */
     async _destructor(options, err) {
         // Is there an indication that the system is either exiting or needs to
         // be cleaned up?
@@ -273,16 +255,15 @@ class NetworkPerformanceMonitorPlatform {
         delete this;
     }
 
- /* ========================================================================
-    Description: Event handler when the system has loaded the platform.
-
-    @throws {TypeError}  - thrown if the 'polling_interval' configuration item is not a number.
-    @throws {RangeError} - thrown if the 'polling_interval' configuration item is outside the allowed bounds.
-
-    @remarks:     Opportunity to initialize the system and publish accessories.
-    ======================================================================== */
+    /**
+     * @description Event handler when the system has loaded the platform.
+     * @returns {void}
+     * @throws {TypeError} - thrown if the 'polling_interval' configuration item is not a number.
+     * @throws {RangeError} - thrown if the 'polling_interval' configuration item is outside the allowed bounds.
+     * @async
+     * @private
+     */
     async _doInitialization() {
-
         // Some network performance targets may still we waiting to complete initialization
         // (i.e. Gateways). Ensure that all npt's are not pending. If any are, then defer initialization.
         let defer = false;
@@ -296,8 +277,7 @@ class NetworkPerformanceMonitorPlatform {
             }
         }
 
-        if (defer)
-        {
+        if (defer) {
             // Try again later.
             setTimeout(this._doInitialization.bind(this), 100);
         }
@@ -321,7 +301,7 @@ class NetworkPerformanceMonitorPlatform {
                 }
             }
             // Perform the cleanup.
-            accessoriesToRemove.forEach(accessory => {
+            accessoriesToRemove.forEach((accessory) => {
                 this._removeAccessory(accessory);
             });
 
@@ -335,32 +315,33 @@ class NetworkPerformanceMonitorPlatform {
                 }
 
                 // Register for the 'ready' event.
-                target.on('ready', this._bindPingReady);
+                target.on(_NETWORK_TARGET_EVENTS.EVENT_READY, this._bindPingReady);
 
                 // Get the accessory to see if it is active or not.
                 const accessory = this._accessories.get(target.ID);
                 // Is the accessory active?
                 if (this._getAccessorySwitchState(accessory)) {
                     // Start the Network Performance Target.
+                    // eslint-disable-next-line new-cap
                     target.Start();
                 }
             }
         }
     }
 
- /* ========================================================================
-    Description: Event handler for the Ping Ready event
-
-    @param {object} [results] - Ping 'readt' event results.
-    @event_param {<NetworkTarget>} [results.sender]         - Reference to the sender of the event.
-    @event_param {boolean}         [results.error]          - Flag indicating is there is an error with the ping.
-    @event_param {number}          [results.packet_loss]    - Packet Loss (percent)
-    @event_param {number}          [results.ping_latency_ms]- Ping Latency in milliseconds.
-    @event_param {number}          [results.ping_sjitter    - Ping Jitter in milliseconds.
-
-    @throws {TypeError}  - thrown if the 'results' is not an object having the expected values.
-    @throws {Error}      - thrown if there is no accessory with a matching id as the sender.
-    ======================================================================== */
+    /**
+     * @description Event handler for the Ping Ready event
+     * @param {object} results - Ping 'read' event results.
+     * @param {_NetworkTarget} results.sender         - Reference to the sender of the event.
+     * @param {boolean}        results.error          - Flag indicating is there is an error with the ping.
+     * @param {number}         results.packet_loss    - Packet Loss (percent)
+     * @param {number}         results.ping_latency_ms- Ping Latency in milliseconds.
+     * @param {number}         results.ping_sjitter   - Ping Jitter in milliseconds.
+     * @returns {void}
+     * @throws {TypeError} - thrown if the 'results' is not an object having the expected values.
+     * @throws {Error} - thrown if there is no accessory with a matching id as the sender.
+     * @private
+     */
     _processPingReady(results) {
         if ((results === undefined) || (typeof(results) !== 'object')                               ||
             (!Object.prototype.hasOwnProperty.call(results, 'sender')) || !(results.sender instanceof _NetworkTarget)      ||
@@ -382,9 +363,11 @@ class NetworkPerformanceMonitorPlatform {
             const accessory = this._accessories.get(id);
             if (accessory !== undefined) {
                 // Get the buffer filled flags.
+                /* eslint-disable new-cap */
                 const latencyBufferFilled   = results.sender.IsBufferFilled(SERVICE_INFO.LATENCY.data_buffer);
                 const jitterBufferFilled     = results.sender.IsBufferFilled(SERVICE_INFO.JITTER.data_buffer);
                 const lossBufferFilled      = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
+                /* eslint-enable new-cap */
 
                 // Compute the fault statuses
                 const threshold     = (3.0*results.sender.ExpectedJitter);
@@ -393,14 +376,17 @@ class NetworkPerformanceMonitorPlatform {
                 const lossFault     = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
 
                 // Determine if the peaks have expired.
+                /* eslint-disable new-cap */
                 const resetPeakLatency  = results.sender.IsPeakExpired(SERVICE_INFO.LATENCY.peak);
                 const resetPeakJitter   = results.sender.IsPeakExpired(SERVICE_INFO.JITTER.peak);
                 const resetPeakLoss     = results.sender.IsPeakExpired(SERVICE_INFO.LOSS.peak);
+                /* eslint-enable new-cap */
+
 
                 // Update the values.
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY,{level:results.ping_latency_ms, fault:latencyFault, resetPeak:resetPeakLatency, active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.JITTER, {level:results.ping_jitter,     fault:jitterFault,  resetPeak:resetPeakJitter,  active:true});
-                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:results.packet_loss,     fault:lossFault,    resetPeak:resetPeakLoss,    active:true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY, {level: results.ping_latency_ms, fault: latencyFault, resetPeak: resetPeakLatency, active: true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.JITTER,  {level: results.ping_jitter,     fault: jitterFault,  resetPeak: resetPeakJitter,  active: true});
+                this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,    {level: results.packet_loss,     fault: lossFault,    resetPeak: resetPeakLoss,    active: true});
             }
         }
         else {
@@ -409,13 +395,13 @@ class NetworkPerformanceMonitorPlatform {
         }
     }
 
- /* ========================================================================
-    Description: Homebridge API invoked after restoring cached accessorues from disk.
-
-    @param {PlatformAccessory} [accessory] - Accessory to be configured.
-
-    @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
-    ======================================================================== */
+    /**
+     * @description Homebridge API invoked after restoring cached accessorues from disk.
+     * @param {_PlatformAccessory} accessory - Accessory to be configured.
+     * @returns {void}
+     * @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
+     * @private
+     */
     configureAccessory(accessory) {
         // Validate the argument(s)
         if ((accessory === undefined) ||
@@ -433,16 +419,14 @@ class NetworkPerformanceMonitorPlatform {
         }
         if (!found) {
             // Configure the accessory (also registers it.)
-            try
-            {
+            try {
                 this._configureAccessory(accessory);
             }
-            catch (error)
-            {
+            catch (error) {
                 this._log(`Unable to configure accessory ${accessory.displayName}. Version:${accessory.context.VERSION}. Error:${error}`);
                 // We don't know where the exception happened. Ensure that the accessory is in the map.
                 const id = accessory.context.ID;
-                if (!this._accessories.has(id)){
+                if (!this._accessories.has(id)) {
                     // Update our accessory listing
                     this._accessories.set(id, accessory);
                 }
@@ -450,18 +434,17 @@ class NetworkPerformanceMonitorPlatform {
         }
     }
 
- /* ========================================================================
-    Description: Create and register an accessory for the network performance target.
-
-    @param {string} [id] - identifier for the accessory.
-
-    @throws {TypeError} - Thrown when 'id' is not a string.
-    @throws {RangeError} - Thrown when 'id' length is 0
-    @throws {Error} - Thrown when an accessory with 'name' is already registered.
-    @throws {Error} - Thrown when there is no matching network performance target.
-    ======================================================================== */
+    /**
+     * @description Create and register an accessory for the network performance target.
+     * @param {string} id identifier for the accessory.
+     * @returns {void}
+     * @throws {TypeError} - thrown when 'id' is not a string.
+     * @throws {RangeError} - thrown when 'id' length is 0
+     * @throws {Error} - thrown when an accessory with 'name' is already registered.
+     * @throws {Error} - thrown when there is no matching network performance target.
+     * @private
+     */
     _addNetworkPerformanceAccessory(id) {
-
         // Validate arguments
         if ((id === undefined) || (typeof(id) !== 'string')) {
             throw new TypeError(`id must be a string`);
@@ -490,7 +473,7 @@ class NetworkPerformanceMonitorPlatform {
         // Mark the version of the accessory. This is used for depersistence
         accessory.context.VERSION = ACCESSORY_VERSION;
         // Create accessory persisted settings
-        accessory.context.SETTINGS = {SwitchState:true};
+        accessory.context.SETTINGS = {SwitchState: true};
 
         // Create our services.
         accessory.addService(_hap.Service.Switch,               SERVICE_INFO.POWER.uuid,   SERVICE_INFO.POWER.udst);
@@ -508,32 +491,30 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         this._api.registerPlatformAccessories(_PackageInfo.CONFIG_INFO.plugin, _PackageInfo.CONFIG_INFO.platform, [accessory]);
-   }
+    }
 
- /* ========================================================================
-    Description: Internal function to perform accessory configuration and internal 'registration' (appending to our list)
-
-    @param {PlatformAccessory} [accessory] - Accessory to be configured.
-
-    @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
-
-    @remarks:     Opportunity to setup event handlers for characteristics and update values (as needed).
-    ======================================================================== */
+    /**
+     * @description Performs accessory configuration and internal 'registration' (appending to our list).
+     *              Opportunity to setup event handlers for characteristics and update values (as needed).
+     * @param {_PlatformAccessory} accessory - Accessory to be configured/registered
+     * @returns {void}
+     * @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
+     * @private
+     */
     _configureAccessory(accessory) {
-
         if ((accessory === undefined) ||
             (!(accessory instanceof _PlatformAccessory))) {
             throw new TypeError(`accessory must be a PlatformAccessory`);
         }
 
-        this._log.debug("Configuring accessory %s", accessory.displayName);
+        this._log.debug('Configuring accessory %s', accessory.displayName);
 
         // Get the accessory identifier from the contect.
         const id = accessory.context.ID;
 
         // Register to handle the Identify request for the accessory.
         accessory.on(_PlatformAccessory.PlatformAccessoryEvent.IDENTIFY, () => {
-            this._log("%s identified!", accessory.displayName);
+            this._log('%s identified!', accessory.displayName);
         });
 
         // Does this accessory have a Switch service?
@@ -564,53 +545,50 @@ class NetworkPerformanceMonitorPlatform {
 
         // Update the names of each service.
         const infoItems = [SERVICE_INFO.LATENCY, SERVICE_INFO.JITTER, SERVICE_INFO.LOSS];
-        for (const name_info of infoItems) {
-            const service = accessory.getServiceById(name_info.uuid, name_info.udst);
+        for (const item of infoItems) {
+            const service = accessory.getServiceById(item.uuid, item.udst);
             if (service !== undefined) {
-                service.updateCharacteristic(_hap.Characteristic.Name, `${name_info.name}-(${accessory.displayName})`);
+                service.updateCharacteristic(_hap.Characteristic.Name, `${item.name}-(${accessory.displayName})`);
             }
         }
 
         // Initialize the Carbon Dioxide Sensors
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LATENCY,{level:0.0, fault:false, resetPeak:true, active:switchState});
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.JITTER, {level:0.0, fault:false, resetPeak:true, active:switchState});
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LOSS,   {level:0.0, fault:false, resetPeak:true, active:switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LATENCY, {level: 0.0, fault: false, resetPeak: true, active: switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.JITTER,  {level: 0.0, fault: false, resetPeak: true, active: switchState});
+        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LOSS,    {level: 0.0, fault: false, resetPeak: true, active: switchState});
 
         // Update the accessory information
-        this._updateAccessoryInfo(accessory, {model:"GrumpTech Network Performance", serialnum:id});
+        this._updateAccessoryInfo(accessory, {model: 'GrumpTech Network Performance', serialnum: id});
 
         // Is this accessory new to us?
-        if (!this._accessories.has(id)){
+        if (!this._accessories.has(id)) {
             // Update our accessory listing
             this._log.debug(`Adding accessory '${accessory.displayName} to the accessories list. Count:${this._accessories.size}`);
             this._accessories.set(id, accessory);
         }
     }
 
- /* ========================================================================
-    Description: Internal function to perform accessory configuration for Carbon Dioxide Sensor services.
-
-    @param {PlatformAccessory} [accessory]          - Accessory to be configured.
-    @param {object}            [serviceInfo]        - Name information of the service to be configured.
-    @param {string}            [serviceInfo.uuid]   - UUID of the service
-    @param {string}            [serviceInfo.name]   - Name of the service.
-    @param {string}            [serviceInfo.udst]   - User Defined Sub-Type of the service.
-    @param {string}            [serviceInfo.peak]   - Name of the 'peak'. Used to update the target when the peak is updated.
-    @param {string}            [serviceInfo.alert]  - Name of the 'alert'. Used to update the target when a fault is set or cleared.
-    @paran {object}            [values]             - Object containing the values being set.
-    @param {number  | Error}   [values.level]       - Value to be reported as the CO Level
-    @param {boolean | Error}   [values.fault]       - true if a fault exists.
-    @param {boolean | Error}   [values.resetPeak]   - true if the peak level should be reset.
-
-    @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
-    @throws {TypeError} - thrown if 'serviceInfo' does not conform to a serviceInfo item.
-    @throws {TypeError} - thrown if 'values' is not an object or does not contain the expected fields.
-    @throws {Error}     - thrown if the service for the serviceName is not a Carbon Dioxide Sensor.
-
-    @remarks:     Opportunity to setup event handlers for characteristics and update values (as needed).
-    ======================================================================== */
+    /**
+     * @description Internal function to perform accessory configuration for Carbon Dioxide Sensor services.
+     * @param {_PlatformAccessory} accessory - Accessory to be configured.
+     * @param {object} serviceInfo - Name information of the service to be configured.
+     * @param {string} serviceInfo.uuid   - UUID of the service
+     * @param {string} serviceInfo.name   - Name of the service.
+     * @param {string} serviceInfo.udst   - User Defined Sub-Type of the service.
+     * @param {string} serviceInfo.peak   - Name of the 'peak'. Used to update the target when the peak is updated.
+     * @param {string} serviceInfo.alert  - Name of the 'alert'. Used to update the target when a fault is set or cleared.
+     * @param {object} values             - Object containing the values being set.
+     * @param {number  | Error} values.level       - Value to be reported as the CO Level
+     * @param {boolean | Error} values.fault       - true if a fault exists.
+     * @param {boolean | Error} values.resetPeak   - true if the peak level should be reset.
+     * @returns {void}
+     * @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
+     * @throws {TypeError} - thrown if 'serviceInfo' does not conform to a serviceInfo item.
+     * @throws {TypeError} - thrown if 'values' is not an object or does not contain the expected fields.
+     * @throws {Error} - thrown if the service for the serviceName is not a Carbon Dioxide Sensor.
+     * @private
+     */
     _updateCarbonDioxideSensorService(accessory, serviceInfo, values) {
-
         if ((accessory === undefined) ||
             (!(accessory instanceof _PlatformAccessory))) {
             throw new TypeError(`accessory must be a PlatformAccessory`);
@@ -622,8 +600,7 @@ class NetworkPerformanceMonitorPlatform {
             (!Object.prototype.hasOwnProperty.call(serviceInfo, 'udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0)        ) ||
             (!Object.prototype.hasOwnProperty.call(serviceInfo, 'peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0)        ) ||
             (!Object.prototype.hasOwnProperty.call(serviceInfo, 'data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) ) ||
-            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   )
-        {
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   ) {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
         if ((values === undefined) || (typeof(values) !== 'object') ||
@@ -643,8 +620,11 @@ class NetworkPerformanceMonitorPlatform {
                 const target = this._networkPerformanceTargets.get(accessory.context.ID);
 
                 // Determine the fault code and CO2 Level
+                /* eslint-disable max-len */
                 const faultCode = (values.fault                                                   ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
+                // eslint-disable-next-line new-cap
                 const co2Level  = ((target.IsAlertActive(serviceInfo.alert_mask) && values.fault) ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                /* eslint-enable max-len */
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
                 serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxideDetected, co2Level);
@@ -663,6 +643,7 @@ class NetworkPerformanceMonitorPlatform {
                     serviceCO2Ping.updateCharacteristic(_hap.Characteristic.CarbonDioxidePeakLevel, values.level);
                     // Update the peak time reference.
                     if (target !== undefined) {
+                        // eslint-disable-next-line new-cap
                         target.UpdatePeakTime(serviceInfo.peak);
                     }
                 }
@@ -677,14 +658,14 @@ class NetworkPerformanceMonitorPlatform {
         }
     }
 
- /* ========================================================================
-    Description: Remove/destroy an accessory
-
-    @param {object} [accessory] - accessory to be removed.
-
-    @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory.
-    @throws {RangeError} - Thrown when a 'accessory' is not registered.
-    ======================================================================== */
+    /**
+     * @description Remove/destroy an accessory
+     * @param {_PlatformAccessory} accessory - accessory to be removed.
+     * @returns {void}
+     * @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory.
+     * @throws {RangeError} - Thrown when a 'accessory' is not registered.
+     * @private
+     */
     _removeAccessory(accessory) {
         // Validate arguments
         if ((accessory === undefined) || !(accessory instanceof _PlatformAccessory)) {
@@ -714,19 +695,18 @@ class NetworkPerformanceMonitorPlatform {
         this._accessories.delete(accessory.context.ID);
     }
 
- /* ========================================================================
-    Description: Update an accessory
-
-    @param {object} [accessory] - accessory to be updated.
-
-    @param {object} [info]                      - accessory information.
-    @param {string | Error} [info.model]        - accessory model number
-    @param {string | Error} [info.serialnum]    - accessory serial number.
-
-    @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory..
-    @throws {TypeError} - Thrown when 'info' is not undefined, does not have the 'model' or 'serialnum' properties
-                          or the properties are not of the expected type.
-    ======================================================================== */
+    /**
+     * @description Update common information for an accessory
+     * @param {_PlatformAccessory} accessory - accessory to be updated.
+     * @param {object} info - accessory information.
+     * @param {string | Error} info.model - accessory model number
+     * @param {string | Error} info.serialnum - accessory serial number.
+     * @returns {void}
+     * @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory.
+     * @throws {TypeError} - Thrown when 'info' is not undefined, does not have the 'model' or
+     *                       'serialnum' properties or the properties are not of the expected type.
+     * @private
+     */
     _updateAccessoryInfo(accessory, info) {
         // Validate arguments
         if ((accessory === undefined) || !(accessory instanceof _PlatformAccessory)) {
@@ -740,8 +720,7 @@ class NetworkPerformanceMonitorPlatform {
 
         /* Get the accessory info service. */
         const accessoryInfoService = accessory.getService(_hap.Service.AccessoryInformation);
-        if (accessoryInfoService != undefined)
-        {
+        if (accessoryInfoService != undefined) {
             /* Manufacturer */
             accessoryInfoService.updateCharacteristic(_hap.Characteristic.Manufacturer, `GrumpTech`);
 
@@ -753,20 +732,18 @@ class NetworkPerformanceMonitorPlatform {
 
             /* Software Version */
             accessoryInfoService.updateCharacteristic(_hap.Characteristic.SoftwareRevision, `v${accessory.context.VERSION}`);
-
         }
     }
 
- /* ========================================================================
-    Description: Event handler for the "get" event for the Switch.On characteristic.
-
-    @param {string} [id] - identification of the accessory being querried.
-
-    @param {function} [callback] - Function callback for homebridge.
-
-    @throws {TypeError} - Thrown when 'id' is not a non-zero string.
-    @throws {Error}     - Thrown when there is no accessory keyed with 'id'
-    ======================================================================== */
+    /**
+     * @description Event handler for the "get" event for the Switch.On characteristic.
+     * @param {string} id - accessory and id of the switch service being querried.
+     * @param {Function} callback - Function callback for homebridge.
+     * @returns {void}
+     * @throws {TypeError} - thrown when 'id' is not a non-zero string.
+     * @throws {Error} - Thrown when there is no accessory keyed with 'id'
+     * @private
+     */
     _handleOnGet(id, callback) {
         // Validate arguments
         if ((id === undefined) ||
@@ -800,16 +777,16 @@ class NetworkPerformanceMonitorPlatform {
         callback(status, result);
     }
 
- /* ========================================================================
-    Description: Event handler for the "set" event for the Switch.On characteristic.
-
-    @param {string} [id] - identification of the accessory being commanded.
-    @param {bool} [value] - new/rewuested state of the switch
-    @param {function} [callback] - Function callback for homebridge.
-
-    @throws {TypeError} - Thrown when 'id' is not a non-zero string.
-    @throws {Error}     - Thrown when there is no accessory or networt performance target keyed with 'id'
-    ======================================================================== */
+    /**
+     * @description Event handler for the "set" event for the Switch.On characteristic.
+     * @param {string} id - accessory and id of the switch service being querried.
+     * @param {boolean} value - new/rewuested state of the switch
+     * @param {Function} callback - Function callback for homebridge.
+     * @returns {void}
+     * @throws {TypeError} - thrown when 'id' is not a non-zero string.
+     * @throws {Error} - Thrown when there is no accessory keyed with 'id'
+     * @private
+     */
     _handleOnSet(id, value, callback) {
         // Validate arguments
         if ((id === undefined) ||
@@ -824,7 +801,7 @@ class NetworkPerformanceMonitorPlatform {
 
             // Store the state of the switch so that when the plugin is restarted, we will restore the
             // switch state as it was last set.
-            let theSettings = accessory.context.SETTINGS;
+            const theSettings = accessory.context.SETTINGS;
             if ((theSettings !== undefined) &&
                 (typeof(theSettings) === 'object') &&
                 (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState')) &&
@@ -842,10 +819,11 @@ class NetworkPerformanceMonitorPlatform {
                     if (target !== undefined) {
                         // Update/reinitialize the accessory data (including the peak, as needed)
                         const theLevel = (value ? 0.0 : -1.0);
-                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY,{level:theLevel, fault:false, resetPeak:value, active:value});
-                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.JITTER, {level:theLevel, fault:false, resetPeak:value, active:value});
-                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,   {level:theLevel, fault:false, resetPeak:value, active:value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY, {level: theLevel, fault: false, resetPeak: value, active: value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.JITTER,  {level: theLevel, fault: false, resetPeak: value, active: value});
+                        this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,    {level: theLevel, fault: false, resetPeak: value, active: value});
 
+                        /* eslint-disable new-cap */
                         if (value) {
                             // Turn the Ping Power On !!
                             target.Start();
@@ -854,6 +832,7 @@ class NetworkPerformanceMonitorPlatform {
                             // Note: Even after turning the ping power off, there may be one more result coming in.
                             target.Stop();
                         }
+                        /* eslint-enable new-cap */
                     }
                 }
                 else {
@@ -873,17 +852,14 @@ class NetworkPerformanceMonitorPlatform {
         callback(status);
     }
 
- /* ========================================================================
-    Description: Get the value of the Service.Switch.On characteristic value
-
-    @param {object} [accessory] - accessory being querried.
-
-    @return - the value of the On characteristic (true or false)
-
-    @throws {TypeError} - Thrown when 'accessory' is not an instance of _PlatformAccessory.
-    @throws {Error}     - Thrown when the switch service or On characteristic cannot
-                          be found on the accessory.
-    ======================================================================== */
+    /**
+     * @description Get the value of the Service.Switch.On characteristic value
+     * @param {object} accessory - accessory being querried.
+     * @returns {boolean} the value of the On characteristic (true or false)
+     * @throws {TypeError} - TThrown when 'accessory' is not an instance of _PlatformAccessory.
+     * @throws {Error}  - Thrown when the On characteristic cannot be found on the accessory.
+     * @private
+     */
     _getAccessorySwitchState(accessory) {
         // Validate arguments
         if ((accessory === undefined) || !(accessory instanceof _PlatformAccessory)) {
@@ -913,7 +889,7 @@ class NetworkPerformanceMonitorPlatform {
  * @description Helper to get the information of interest from the package.json file.
  * @returns {object} Data of interest.
  */
- function _getPackageInfo() {
+function _getPackageInfo() {
     const packageFilename = _join(__dirname, '../package.json');
     const rawContents = _readFileSync(packageFilename);
     const parsedData = JSON.parse(rawContents);
@@ -922,3 +898,34 @@ class NetworkPerformanceMonitorPlatform {
 
     return pkgInfo;
 }
+
+/**
+ * @description Exported default function for Homebridge integration.
+ * @param {object} homebridgeAPI - reference to the Homebridge API.
+ * @returns {void}
+ */
+export default (homebridgeAPI) => {
+    _debug(`homebridge API version: v${homebridgeAPI.version}`);
+
+    // Get the package information.
+    _PackageInfo = _getPackageInfo();
+
+    // Accessory must be created from PlatformAccessory Constructor
+    _PlatformAccessory  = homebridgeAPI.platformAccessory;
+    if (!Object.prototype.hasOwnProperty.call(_PlatformAccessory, 'PlatformAccessoryEvent')) {
+        // Append the PlatformAccessoryEvent.IDENTITY enum to the platform accessory reference.
+        // This allows us to not need to import anything from 'homebridge'.
+        const platformAccessoryEvent = {
+            IDENTIFY: 'identify',
+        };
+
+        _PlatformAccessory.PlatformAccessoryEvent = platformAccessoryEvent;
+    }
+
+    // Cache the reference to hap-nodejs
+    _hap                = homebridgeAPI.hap;
+
+    // Register the paltform.
+    _debug(`Registering platform: ${_PackageInfo.CONFIG_INFO.platform}`);
+    homebridgeAPI.registerPlatform(_PackageInfo.CONFIG_INFO.platform, NetworkPerformanceMonitorPlatform);
+};
