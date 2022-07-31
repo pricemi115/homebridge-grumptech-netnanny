@@ -1,130 +1,220 @@
+/**
+ * @description Monitors network performance for a target based on ping results.
+ * @copyright 2021
+ * @author Mike Price <dev.grumptech@gmail.com>
+ * @module NetworkTargetModule
+ * @requires debug
+ * @see {@link https://github.com/debug-js/debug#readme}
+ * @requires events
+ * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/events}
+ * @requires crypto
+ * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html}
+ * @requires validator
+ * @see {@link hhttps://github.com/validatorjs/validator.js#readme}
+ * @requires grumptech-spawn-helper
+ * @see {@link https://github.com/pricemi115/grumptech-spawn-helper#readme}
+ */
 /* ==========================================================================
    File:               networkTarget.js
    Class:              Network Target
-   Description:	       Monitors network performance for a target based on
+   Description:        Monitors network performance for a target based on
                        ping results.
    Copyright:          Mar 2021
    ========================================================================== */
 
-   // External dependencies and imports.
+// External dependencies and imports.
 import _debugModule from 'debug';
 import EventEmitter from 'events';
 import * as modCrypto from 'crypto';
 import _VALIDATOR from 'validator';
-
-// Internal dependencies.
-import { default as _SpawnHelper, SPAWN_HELPER_EVENTS as _SPAWN_HELPER_EVENTS} from 'grumptech-spawn-helper';
+import {default as _SpawnHelper, SPAWN_HELPER_EVENTS as _SPAWN_HELPER_EVENTS} from 'grumptech-spawn-helper';
 
 /**
  * @description Debugging function pointer for runtime related diagnostics.
  * @private
  */
- const _debug = _debugModule('network_target');
-
+const _debug = _debugModule('network_target');
 // Bind debug to console.log
 _debug.log = console.log.bind(console);
 
 // Helpful constants and conversion factors.
+/**
+ * @description Default time, in seconds, for initiating a set of ping requests.
+ * @private
+ */
 const DEFAULT_PERIOD_SEC            = 20.0;
+/**
+ * @description Default number of ping operations for each set.
+ * @private
+ */
 const DEFAULT_PING_COUNT            = 5;
+/**
+ * @description Minimum number of ping operations for each set.
+ * @private
+ */
 const MIN_PING_COUNT                = 3; // Need at least 3 to compute a standard deviation
+/**
+ * @description Default time, in seconds, between each ping operation within a set.
+ * @private
+ */
 const DEFAULT_PING_INTERVAL         = 1;
+/**
+ * @description Minimim time, in seconds, between each ping operation within a set.
+ * @private
+ */
 const MIN_PING_INTERVAL             = 1;
+/**
+ * @description Minimum time, in seconds, between sets of ping requests.
+ * @private
+ */
 const MIN_PERIOD_SEC                = (2.0*MIN_PING_INTERVAL*MIN_PING_COUNT);
+/**
+ * @description Minimum size, in bytes, for the packets of each ping request.
+ * @private
+ */
 const MIN_PACKET_SIZE               = 56;
+/**
+ * @description Default size, in bytes, for the packets of each ping request.
+ * @private
+ */
 const DEFAULT_PACKET_SIZE           = MIN_PACKET_SIZE;
+/**
+ * @description Conversion factor to go from secods to milliseconds.
+ * @private
+ */
 const CONVERT_SEC_TO_MS             = 1000.0;
+/**
+ * @description Flag value for an invalid timeout
+ * @private
+ */
 const INVALID_TIMEOUT_ID            = -1;
+/**
+ * @description Default limit of packet loss before declaring an error.
+ * @private
+ */
 const DEFAULT_PACKET_LOSS_LIMIT     = 5.0;
+/**
+ * @description Minimum limit of packet loss.
+ * @private
+ */
 const MIN_LOSS_LIMIT                = 0.0;
+/**
+ * @description Maximum limit of packet loss.
+ * @private
+ */
 const MAX_LOSS_LIMIT                = 100.0;
+/**
+ * @description Default time, in milliseconds, for expiring a peak result.
+ * @private
+ */
 const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to milliseconds.
+/**
+ * @description Default time, in seconds, for filtering the ping results.
+ * @private
+ */
 const DEFAULT_DATA_FILTER_TIME_SEC  = 180.0;
 
 /* Enumeration for target types */
 export const TARGET_TYPES = {
+    /* eslint-disable key-spacing */
     URI         : 'uri',
     IPV4        : 'ipv4',
     IPV6        : 'ipv6',
     GATEWAY     : 'gateway',
-    CABLE_MODEM : 'cable_modem'
+    CABLE_MODEM : 'cable_modem',
+    /* eslint-enable key-spacing */
 };
 
 /* Enumeration for peak types */
 export const PEAK_TYPES = {
+    /* eslint-disable key-spacing */
     LATENCY    : 'peak_latency',
     JITTER     : 'peak_jitter',
-    LOSS       : 'peak_packet_loss'
+    LOSS       : 'peak_packet_loss',
+    /* eslint-enable key-spacing */
 };
 
 /* Enumeration for data buffer types */
 export const DATA_BUFFER_TYPES = {
+    /* eslint-disable key-spacing */
     LATENCY    : 'data_latency',
-    JITTER     : 'data_sjitter',
-    LOSS       : 'data_packet_loss'
+    JITTER     : 'data_jitter',
+    LOSS       : 'data_packet_loss',
+    /* eslint-enable key-spacing */
 };
 
 /* Enumeration for Alert Types (Bitmask) */
 export const ALERT_BITMASK = {
+    /* eslint-disable key-spacing */
     NONE    : 0,
     LATENCY : 1,
     LOSS    : 2,
     JITTER  : 4,
-    ALL     : 7
+    ALL     : 7,
+    /* eslint-enable key-spacing */
 };
 
 /* Enumeration for Standard Deviation Types             */
 /*  - Used to set the offset when computning the result */
 const STANDARD_DEV_TYPE = {
+    /* eslint-disable key-spacing */
     POPULATION : 0,
-    SAMPLE     : 1
+    SAMPLE     : 1,
+    /* eslint-enable key-spacing */
 };
 
-/* ==========================================================================
-   Class:              NetworkTarget
-   Description:	       Monitors network performance via ping.
-   Copyright:          Mar 2021
+/**
+ * @description Enumeration of published events.
+ * @readonly
+ * @private
+ * @enum {string}
+ * @property {string} EVENT_READY - Identification for the event published when scanning completes.
+ */
+export const NETWORK_TARGET_EVENTS = {
+    /* eslint-disable key-spacing */
+    EVENT_READY    : 'ready',
+    /* eslint-enable key-spacing */
+};
 
-   @event 'ready' => function({object})
-   @event_param {<NetworkTarget>} [sender]      - Reference to the sender of the event.
-   @event_param {bool}            [error]       - Flag indicating is there is an error with the ping.
-   @event_param {number}          [packet_loss] - Packet Loss (percent)
-   @event_param {number}          [ping_latency_ms] - Ping Latency in milliseconds.
-   @event_param {number}          [ping_jitter] - Ping Jitter in milliseconds.
-
-   Event emmitted when the (periodic) ping completes
-   ========================================================================== */
+/**
+ * @description Network Target ready notification
+ * @event module:NEtworkTargetModule#event:ready
+ * @type {object}
+ * @param {NetworkTarget} e.sender - Reference to the sender of the event.
+ * @param {boolean} e.error -Flag indicating is there is an error with the ping.
+ * @param {number} e.packet_loss - Packet Loss (percent)
+ * @param {number} e.ping_latency_ms - Ping Latency in milliseconds.
+ * @param {number} e.ping_jitter - Ping Jitter in milliseconds.
+ */
+/**
+ * @description Class for performing network performance monitoring
+ * @augments EventEmitter
+ */
 export class NetworkTarget extends EventEmitter {
-/*  ========================================================================
-    Description:    Constructor
-
-    @param {object} [config]                  - The settings to use for creating the object.
-    @param {string} [config.id]               - *Optional* Identification for this object
-    @param {string} [config.target_type]      - *Optional* The type of target.
-    @param {string} [config.target_dest]      - *Optional* The destination of target.
-    @param {number} [config.loss_lmit]        - *Optional* The percentage of lost packets that is tolerable.
-    @param {number} [config.packet_size]      - *Optional* The size, in bytes, of the ping packet.
-    @param {number} [config.ping_count]       - *Optional* The number of pings to perform.
-    @param {number} [config.peak_expiration]  - *Optional* The time (in hours) after which an unchanged peak should be reset.
-    @param {number} [config.expected_latency] - *Optional* The time (in milliseconds) for the expected ping latency.
-    @param {number} [config.expected_jitter]  - *Optional* The expected ping jitter (in milliseconds).
-    @param {number} [config.data_filter_time_window] - *Optional* The data filter time period
-    @param {number} [config.sensor_alert_mask] - *Optional* The mask indicating which CO2 sensor alerts are active.
-
-    @return {object}  - Instance of the NetworkTarget class.
-
-    @throws {TypeError}  - thrown if the configuration is undefined or any parameters are
-                           not of the expected type.
-    @throws {RangeError} - thrown if the configuration parameters are out of bounds.
-    ======================================================================== */
+    /**
+     * @description Constructor
+     * @param {object} config - Configuration data
+     * @param {string=} config.target_type - Type of target
+     * @param {string=} config.target_dest - Destination of the target
+     * @param {string=} config.loss_lmit - Percentage of lost packets that is tolerable.
+     * @param {string=} config.packet_size - Size, in bytes, of the ping packet
+     * @param {string=} config.ping_count - Number of pings to perform
+     * @param {string=} config.peak_expiration - Time (in hours) after which an unchanged peak should be reset
+     * @param {string=} config.expected_latency - Time (in milliseconds) for the expected ping latency.
+     * @param {string=} config.expected_jitter - Expected ping jitter (in milliseconds).
+     * @param {string=} config.data_filter_time_window - Data filter time period
+     * @param {string=} config.sensor_alert_mask - Bitmask indicating which CO2 sensor alerts are active.
+     * @throws {TypeError} - thrown if the configuration is undefined or any parameters are not of the expected type.
+     * @throws {RangeError} - thrown if the configuration parameters are out of bounds.
+     * @private
+     */
     constructor(config) {
-
         // Set local defaults
         let pingCount       = DEFAULT_PING_COUNT;
         let pingPeriod      = DEFAULT_PERIOD_SEC;
         let pingInterval    = DEFAULT_PING_INTERVAL;
-        let targetType      = TARGET_TYPES.IPV4;
-        let targetDest      = "localhost";
+        let targetType      = TARGET_TYPES.URI;
+        let targetDest      = 'localhost';
         let expectedLatency = 10.0;
         let expectedJitter  = 1.0;
         let packetSize      = DEFAULT_PACKET_SIZE;
@@ -144,7 +234,7 @@ export class NetworkTarget extends EventEmitter {
                 ((config.ping_count !== undefined)              && (typeof(config.ping_count) !== 'number'))              ||
                 ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
                 ((config.expected_latency !== undefined)        && (typeof(config.expected_latency) !== 'number'))        ||
-                ((config.expected_jitter !== undefined)         && (typeof(config.expected_jitter) !== 'number'))          ||
+                ((config.expected_jitter !== undefined)         && (typeof(config.expected_jitter) !== 'number'))         ||
                 ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number')) ||
                 ((config.alert_mask !== undefined)              && (typeof(config.alert_mask) !== 'number'))                ) {
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
@@ -153,11 +243,11 @@ export class NetworkTarget extends EventEmitter {
             if (config.target_type) {
                 let found = false;
                 for (const item in TARGET_TYPES) {
-                  if (config.target_type.toLowerCase() === TARGET_TYPES[item]) {
-                     targetType = config.target_type.toLowerCase();
-                    found = true;
-                    break;
-                  }
+                    if (config.target_type.toLowerCase() === TARGET_TYPES[item]) {
+                        targetType = config.target_type.toLowerCase();
+                        found = true;
+                        break;
+                    }
                 }
                 if (!found) {
                     throw new RangeError(`config.target_type is invalid: ${config.target_type}`);
@@ -283,13 +373,17 @@ export class NetworkTarget extends EventEmitter {
         // Create a map of Date objects for tracking when the peaks
         // were last set.
         const now = Date.now();
+        /* eslint-disable indent */
         this._peakTime = new Map([[PEAK_TYPES.LATENCY,  now],
                                   [PEAK_TYPES.JITTER,   now],
                                   [PEAK_TYPES.LOSS,     now]]);
+        /* eslint-enable indent */
         // Create a map of data buffers for the numeric results.
-        this._dataBuffers = new Map([[DATA_BUFFER_TYPES.LATENCY,[]],
+        /* eslint-disable indent */
+        this._dataBuffers = new Map([[DATA_BUFFER_TYPES.LATENCY, []],
                                      [DATA_BUFFER_TYPES.JITTER,  []],
-                                     [DATA_BUFFER_TYPES.LOSS,   []]]);
+                                     [DATA_BUFFER_TYPES.LOSS,    []]]);
+        /* eslint-enable indent */
 
         // Callbacks bound to this object.
         this._CB__initiateCheck     = this._on_initiateCheck.bind(this);
@@ -304,8 +398,9 @@ export class NetworkTarget extends EventEmitter {
                 // address ued for cable modems.
                 this._target_type = TARGET_TYPES.IPV4;
                 this._target_dest = '192.168.100.1';
+
+                break;
             }
-            break;
 
             case TARGET_TYPES.GATEWAY:
             {
@@ -313,20 +408,24 @@ export class NetworkTarget extends EventEmitter {
                 // Spawn a request to determine the address of the router.
                 const ping = new _SpawnHelper();
                 ping.on(_SPAWN_HELPER_EVENTS.EVENT_COMPLETE, this._CB__findGatewayAddr);
-                ping.Spawn({ command:'route', arguments:[`get`, `default`] });
+                // eslint-disable-next-line new-cap
+                ping.Spawn({command: 'route', arguments: [`get`, `default`]});
 
                 this._destination_pending = true;
+
+                break;
             }
-            break;
 
             case TARGET_TYPES.URI:
             {
                 // Ensure that the destination in indeed a URI/URL.
-                if (!_VALIDATOR.isURL(this.TargetDestination)) {
+                if (!_VALIDATOR.isURL(this.TargetDestination) &&
+                    (this.TargetDestination !== 'localhost')) {
                     throw new RangeError(`Target Destination is not a URI/URL. ${this.TargetDestination}`);
                 }
+
+                break;
             }
-            break;
 
             case TARGET_TYPES.IPV4:
             {
@@ -334,8 +433,9 @@ export class NetworkTarget extends EventEmitter {
                 if (!_VALIDATOR.isIP(this.TargetDestination, _VALIDATOR.IPV4)) {
                     throw new RangeError(`Target Destination is not an IPV4. ${this.TargetDestination}`);
                 }
+
+                break;
             }
-            break;
 
             case TARGET_TYPES.IPV6:
             {
@@ -343,16 +443,18 @@ export class NetworkTarget extends EventEmitter {
                 if (!_VALIDATOR.isIP(this.TargetDestination, _VALIDATOR.IPV6)) {
                     throw new RangeError(`Target Destination is not an IPV6. ${this.TargetDestination}`);
                 }
+
+                break;
             }
-            break;
 
             default:
             {
                 // Should never happen.
                 throw new RangeError(`Unknwon target type. ${this._target_type}`);
+
+                // eslint-disable-next-line no-unreachable
+                break;
             }
-            // eslint-disable-next-line no-unreachable
-            break;
         }
 
         // Create an identifier based on the target type & destination.
@@ -362,107 +464,104 @@ export class NetworkTarget extends EventEmitter {
         this._id = hash.digest('hex');
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the identification
-
-    @return {number} - Identiy string
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the identification
+     * @returns {number} - Identiy string
+     * @private
+     */
     get ID() {
         return this._id;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the number of ping requests per set.
-
-    @return {number} - Number of pings
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the number of ping requests per set.
+     * @returns {number} - Number of pings
+     * @private
+     */
     get PingCount() {
         return this._ping_count;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the limit (in percent) for packet loss
-
-    @return {number} - Packet loss percent that is tolerated.
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the limit (in percent) for packet loss
+     * @returns {number} - Packet loss percent that is tolerated.
+     * @private
+     */
     get TolerableLoss() {
         return this._loss_limit;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the size (in bytes) of each ping.
-
-    @return {number} - Number of bytes in each ping.
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the size (in bytes) of each ping.
+     * @returns {number} - Number of bytes in each ping.
+     * @private
+     */
     get PacketSize() {
         return this._ping_packet_size;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the ping interval
-
-    @return {number} - Time in seconds between ping requests.
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the ping interval
+     * @returns {number} - Time in seconds between ping requests.
+     * @private
+     */
     get PingInterval() {
         return this._ping_interval;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the ping period
-
-    @return {number} - Time in seconds between ping requests.
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the ping period
+     * @returns {number} - Time in seconds between ping requests.
+     * @private
+     */
     get PingPeriod() {
         return this._ping_period;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the target destination
-
-    @return {string} - destination for the ping.
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the target destination
+     * @returns {string} - destination for the ping.
+     * @private
+     */
     get TargetDestination() {
         return this._target_dest;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the expected ping latency
-
-    @return {number} - time, in milliseconds, expected for the ping latency.
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the expected ping latency
+     * @returns {number} - time, in milliseconds, expected for the ping latency.
+     * @private
+     */
     get ExpectedLatency() {
         return this._expected_latency;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for the expected jitter of
-                 the ping time
-
-    @return {number} - expected jitter of the ping (in milliseconds)
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for the expected jitter of the ping time
+     * @returns {number} - expected jitter of the ping (in milliseconds)
+     * @private
+     */
     get ExpectedJitter() {
         return this._expected_jitter;
     }
 
-/*  ========================================================================
-    Description: Read Property accessor for determining if the TargetDestination
-                 is pending (used for the Gateway type)
-
-    @return {boolean} - true if pending, false otherwise.
-    ======================================================================== */
+    /**
+     * @description Read Property accessor for determining if the TargetDestination is pending (used for the Gateway type)
+     * @returns {boolean} - true if pending, false otherwise.
+     * @private
+     */
     get IsTargetSestinationPending() {
         return this._destination_pending;
     }
 
-/*  ========================================================================
-    Description: Determines if the specified data buffer is completely filled.
-
-    @param {enum:DATA_BUFFER_TYPES} [buffer_type] - Type of the data buffer being querried
-
-    @return {boolean} - true if the data buffer has been filled.
-
-    @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
-    ======================================================================== */
+    /* eslint-disable camelcase */
+    /**
+     * @description Determines if the specified data buffer is completely filled.
+     * @param {DATA_BUFFER_TYPES} buffer_type - Type of the data buffer being querried
+     * @returns {boolean} - true if the data buffer has been filled.
+     * @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
+     * @private
+     */
     IsBufferFilled(buffer_type) {
         // Validate arguments
         if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
@@ -475,17 +574,16 @@ export class NetworkTarget extends EventEmitter {
 
         return filled;
     }
+    /* eslint-enable camelcase */
 
-/*  ========================================================================
-    Description: Determines if the specified peak has expired.
-
-    @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being querried
-
-    @return {boolean} - true if the peak has not been updated in more than
-                        the allowable time.
-
-    @throws {TypeError} - Thrown if 'peak_type' is not a PEAK_TYPES value.
-    ======================================================================== */
+    /* eslint-disable camelcase */
+    /**
+     * @description Determines if the specified peak has expired
+     * @param {PEAK_TYPES} peak_type - Type of the peak being querried
+     * @returns {boolean} - true if the peak has not been updated in more than the allowable time.
+     * @throws {TypeError} - Thrown if 'peak_type' is not a PEAK_TYPES value.
+     * @private
+     */
     IsPeakExpired(peak_type) {
         // Validate arguments
         if ((peak_type === undefined) || (typeof(peak_type) !== 'string') ||
@@ -500,14 +598,16 @@ export class NetworkTarget extends EventEmitter {
 
         return expired;
     }
+    /* eslint-enable camelcase */
 
-/*  ========================================================================
-    Description: Update the time that the specified peak was updated.
-
-    @param {enum:PEAK_TYPES} [peak_type] - Type of the peak being updated.
-
-    @throws {TypeError} - Thrown if 'peak_type' is not a PEAK_TYPES value.
-    ======================================================================== */
+    /* eslint-disable camelcase */
+    /**
+     * @description Update the time that the specified peak was updated
+     * @param {PEAK_TYPES} peak_type - Type of the peak being querried
+     * @returns {void}
+     * @throws {TypeError} - Thrown if 'peak_type' is not a PEAK_TYPES value.
+     * @private
+     */
     UpdatePeakTime(peak_type) {
         // Validate arguments
         if ((peak_type === undefined) || (typeof(peak_type) !== 'string') ||
@@ -518,16 +618,15 @@ export class NetworkTarget extends EventEmitter {
         // Update the reference time for the specified peak.
         this._peakTime.set(peak_type, Date.now());
     }
+    /* eslint-enable camelcase */
 
-/*  ========================================================================
-    Description: Determines if the specified peak has expired.
-
-    @param {enum:ALERT_BITMASK} [alert_mask] - Bitmask of the alerts being checked
-
-    @return {boolean} - true if all of the alerts specified in 'alert_mask' is/are active
-
-    @throws {TypeError} - Thrown if 'alert_mask' is not a ALERT_BITMASK value.
-    ======================================================================== */
+    /* eslint-disable camelcase */
+    /**
+     * @description Determines if the specified peak has expired
+     * @param {ALERT_BITMASK} alert_mask - Bitmask of the alerts being checked
+     * @returns {boolean} - true if all of the alerts specified in 'alert_mask' is/are active
+     * @throws {TypeError} - Thrown if 'alert_mask' is not a ALERT_BITMASK value
+     */
     IsAlertActive(alert_mask) {
         // Validate arguments
         if ((alert_mask === undefined) || (typeof(alert_mask) !== 'number') ||
@@ -540,13 +639,15 @@ export class NetworkTarget extends EventEmitter {
 
         return active;
     }
+    /* eslint-enable camelcase */
 
-/*  ========================================================================
-    Description: Start/Restart the network performance process.
-    ======================================================================== */
+    /**
+     * @description Start/Restart the network performance process
+     * @returns {void}
+     */
     Start() {
-
         // Stop the interrogation in case it is running.
+        // eslint-disable-next-line new-cap
         this.Stop();
 
         // Reset the internal data
@@ -556,22 +657,24 @@ export class NetworkTarget extends EventEmitter {
         this._on_initiateCheck();
     }
 
-/*  ========================================================================
-    Description: Stop the network performance process, if running.
-    ======================================================================== */
+    /**
+     * @description Stop the network performance process, if running.
+     * @returns {void}
+     */
     Stop() {
         if (this._timeoutID !== INVALID_TIMEOUT_ID) {
             clearTimeout(this._timeoutID);
         }
     }
 
-/*  ========================================================================
-    Description: Helper to reset the raw data buffers and the peak data
-    ======================================================================== */
+    /**
+     * @description Helper to reset the raw data buffers and the peak data
+     * @returns {void}
+     */
     _reset() {
         // Flush the data buffers.
         for (const dataBufferKey of this._dataBuffers.keys()) {
-            do {/*nothing*/} while (typeof(this._dataBuffers.get(dataBufferKey).shift()) !== 'undefined');
+            do {/* nothing */} while (typeof(this._dataBuffers.get(dataBufferKey).shift()) !== 'undefined');
         }
         // Reset the peaks
         for (const peakKey of this._peakTime.keys()) {
@@ -579,14 +682,11 @@ export class NetworkTarget extends EventEmitter {
         }
     }
 
-/*  ========================================================================
-    Description: Helper function used to initiate a performance check of the
-                 network target.
-
-    @remarks: Called periodically by a timeout timer.
-    ======================================================================== */
+    /**
+     * @description Helper function used to initiate a performance check of the network target. Called periodically by a timeout timer.
+     * @returns {void}
+     */
     _on_initiateCheck() {
-
         // Default to a 1ms delay for the next notification.
         // If a ping is not in progress, the desired delay will be used instead.
         let delay = 1.0;
@@ -599,7 +699,8 @@ export class NetworkTarget extends EventEmitter {
             // Spawn a 'ping' to determine the performance of the network target
             const ping = new _SpawnHelper();
             ping.on(_SPAWN_HELPER_EVENTS.EVENT_COMPLETE, this._CB__ping);
-            ping.Spawn({ command:'ping', arguments:[`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, this.TargetDestination] });
+            // eslint-disable-next-line new-cap
+            ping.Spawn({command: 'ping', arguments: [`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, this.TargetDestination]});
 
             // Update the delay
             delay = this.PingPeriod * CONVERT_SEC_TO_MS;
@@ -609,17 +710,14 @@ export class NetworkTarget extends EventEmitter {
         this._timeoutID = setTimeout(this._CB__initiateCheck, delay);
     }
 
-/*  ========================================================================
-    Description:    Event handler for the SpawnHelper 'complete' Notification
-
-    @param { object }                      [response]        - Spawn response.
-    @param { bool }                        [response.valid]  - Flag indicating if the spoawned process
-                                                               was completed successfully.
-    @param { <Buffer> | <string> | <any> } [response.result] - Result or Error data provided  by
-                                                               the spawned process.
-    @param { SpawnHelper }                 [response.source] - Reference to the SpawnHelper that provided the results.
-
-    ======================================================================== */
+    /**
+     * @description Event handler for the SpawnHelper 'complete' Notification
+     * @param {object} response - Spawn response.
+     * @param {boolean} response.valid - Flag indicating if the spoawned process was completed successfully.
+     * @param {Buffer | string | any } response.result - Result or Error data provided by the spawned process.'
+     * @param {_SpawnHelper} response.source - Reference to the SpawnHelper that provided the results.
+     * @returns {void}
+     */
     _on_process_ping(response) {
         _debug(`'${response.source.Command} ${response.source.Arguments}' Spawn Helper Result: valid:${response.valid}`);
         _debug(response.result);
@@ -627,9 +725,11 @@ export class NetworkTarget extends EventEmitter {
         // Default values used for publishing to listeners
         let err             = true;
         // Map for tracking which buffers to trim (from the left)
-        let removeOld = new Map([[DATA_BUFFER_TYPES.LATENCY,  true],
+        /* eslint-disable indent */
+        const removeOld = new Map([[DATA_BUFFER_TYPES.LATENCY,  true],
                                  [DATA_BUFFER_TYPES.JITTER, true],
                                  [DATA_BUFFER_TYPES.LOSS,  true]]);
+        /* eslint-disable indent */
 
         if (response.valid &&
             (response.result !== undefined)) {
@@ -639,14 +739,15 @@ export class NetworkTarget extends EventEmitter {
             // -------------------
             // Find the raw ping data and statistics
             const RAW_PING_SEQ_TAG = 'icmp_seq=';
-            let rawPingTime = [];
+            const rawPingTime = [];
             let rawPingLossCount = 0;
             for (let index=0; index<lines.length; index++) {
                 // Search for lines that provide raw ping results.
                 if (lines[index].toLowerCase().includes(RAW_PING_SEQ_TAG)) {
                     const RAW_PING_TIME_PREFIX = 'time=';
-                    const RAW_PING_TIME_SUFFIX = " ms";
+                    const RAW_PING_TIME_SUFFIX = ' ms';
                     // This is a line with a raw reading. It is assumed these come before the statistics line.
+                    /* eslint-disable camelcase */
                     const raw_ping_time_start = lines[index].indexOf(RAW_PING_TIME_PREFIX);
                     if (raw_ping_time_start >= 0) {
                         const raw_ping_time = lines[index].slice((raw_ping_time_start+RAW_PING_TIME_PREFIX.length), (lines[index].length-RAW_PING_TIME_SUFFIX.length));
@@ -656,6 +757,7 @@ export class NetworkTarget extends EventEmitter {
                         // The RAW_PING_TIME_PREFIX tag was not found in the raw reading. This indicates packet loss.
                         rawPingLossCount += 1;
                     }
+                    /* eslint-enable camelcase */
                 }
             }
 
@@ -708,7 +810,7 @@ export class NetworkTarget extends EventEmitter {
             const avtJitter    = this._computeAVT(DATA_BUFFER_TYPES.JITTER);
             const avtLoss      = this._computeAVT(DATA_BUFFER_TYPES.LOSS);
 
-            this.emit('ready', {sender:this, error:err, packet_loss:avtLoss, ping_latency_ms:avtLatency, ping_jitter:avtJitter});
+            this.emit(NETWORK_TARGET_EVENTS.EVENT_READY, {sender: this, error: err, packet_loss: avtLoss, ping_latency_ms: avtLatency, ping_jitter: avtJitter});
         }
         catch (e) {
             _debug(`Error encountered raising 'ready' event. ${e}`);
@@ -718,18 +820,15 @@ export class NetworkTarget extends EventEmitter {
         this._pingInProgress = false;
     }
 
-/*  ========================================================================
-    Description:    Event handler for the SpawnHelper 'complete' Notification
-
-    @param { object }                      [response]        - Spawn response.
-    @param { bool }                        [response.valid]  - Flag indicating if the spoawned process
-                                                               was completed successfully.
-    @param { <Buffer> | <string> | <any> } [response.result] - Result or Error data provided  by
-                                                               the spawned process.
-    @param { SpawnHelper }                 [response.source] - Reference to the SpawnHelper that provided the results.
-
-    @throws {Error} - thrown for various error conditions.
-    ======================================================================== */
+    /**
+     * @description Event handler for the SpawnHelper 'complete' Notification
+     * @param {object} response - Spawn response.
+     * @param {boolean} response.valid - Flag indicating if the spoawned process was completed successfully.
+     * @param {Buffer | string | any } response.result - Result or Error data provided by the spawned process.'
+     * @param {_SpawnHelper} response.source - Reference to the SpawnHelper that provided the results.
+     * @returns {void}
+     * @throws {Error} - thrown for various error conditions.
+     */
     _on_find_gateway_address(response) {
         _debug(`'${response.source.Command} ${response.source.Arguments}' Spawn Helper Result: valid:${response.valid}`);
         _debug(response.result);
@@ -766,20 +865,19 @@ export class NetworkTarget extends EventEmitter {
         this._destination_pending = false;
     }
 
-/*  ========================================================================
-    Description:    Helper to compute the statistics of the data provided
-
-    @param { [number] } [data]          - Array of numbers from which to compute the statistics.
-    @param { STANDARD_DEV_TYPE } type   - *Optional* Type of standard deviation to compute: Population or Sample.
-                                            Defaults to Sample
-
-    @return {object} - computed statistics
-    @retuen {object.mean} - average of the data
-    @return {object.median} - median of the data
-    @return {object.stddev} - standard deviation of the data
-
-    @throws {TypeError} - Thrown if 'data' is not an array of numbers or if 'type' is not valid
-    ======================================================================== */
+    /**
+     * @typedef {object} statistics
+     * @property {number} mean - average value
+     * @property {number} median - median value
+     * @property {number} stddev - standard deviation
+     */
+    /**
+     * @description Helper to compute the statistics of the data provided
+     * @param {number[]} data - Array of numbers from which to compute the statistics.
+     * @param {STANDARD_DEV_TYPE=} type - Type of standard deviation to compute: Population or Sample.
+     * @returns {statistics} - computed statistics
+     * @throws {TypeError} - thrown if 'data' is not an array of numbers or if 'type' is not valid
+     */
     _computeStats(data, type) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||
@@ -792,13 +890,12 @@ export class NetworkTarget extends EventEmitter {
             }
         }
         if ((type !== undefined) &&
-            ((typeof(type) !== 'number') || (Object.values(STANDARD_DEV_TYPE).indexOf(type) < 0)))
-        {
+            ((typeof(type) !== 'number') || (Object.values(STANDARD_DEV_TYPE).indexOf(type) < 0))) {
             throw new TypeError(`type is not an valid.`);
         }
 
         // Make a deep copy of the buffer
-        let theData = [].concat(data);
+        const theData = [].concat(data);
 
         // Sort the data in ascending order.
         theData.sort((a, b) => a - b);
@@ -825,6 +922,7 @@ export class NetworkTarget extends EventEmitter {
         }
         // Compute the standard deviatiation
         const offset = ((type === STANDARD_DEV_TYPE.POPULATION) ? 0 : 1);
+        /* eslint-disable camelcase */
         const std_dev = (theData.length > offset) ? (Math.sqrt(s/(theData.length-offset))) : Number.NaN;
 
         // Determine the median
@@ -832,22 +930,20 @@ export class NetworkTarget extends EventEmitter {
         const medianIndex = Math.floor(theData.length/2);
         const median = (theData.length > medianIndex) ? theData[medianIndex] : 0;
 
-        const result = {mean:mean, stddev:std_dev, median:median, min:min, max:max, size:theData.length};
+        const result = {mean: mean, stddev: std_dev, median: median, min: min, max: max, size: theData.length};
         _debug(`Stats Report:`);
         _debug(result);
+        /* eslint-enablew camelcase */
 
         return result;
     }
 
-/*  ========================================================================
-    Description:    Helper to compute the AVT (Antonyan Vardan Transform ) filter algotithm.
-
-    @param { string } [buffer_type] - The requested buffer type for statistics.
-
-    @return {number} - median value of the requested databuffer. NAN if no data is present.
-
-    @throws {TypeError} - Thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
-    ======================================================================== */
+    /**
+     * @description Helper to compute the AVT (Antonyan Vardan Transform ) filter algotithm.
+     * @param {string} buffer_type - The requested buffer type for statistics.
+     * @returns {number} - the filtered value of the requested buffer.
+     * @throws {TypeError} - thrown if 'buffer_type' is not a DATA_BUFFER_TYPES value.
+     */
     _computeAVT(buffer_type) {
         // Validate arguments
         if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
@@ -856,7 +952,7 @@ export class NetworkTarget extends EventEmitter {
         }
 
         // Make a deep copy of the buffer
-        let buffer = [].concat(this._dataBuffers.get(buffer_type));
+        const buffer = [].concat(this._dataBuffers.get(buffer_type));
 
         // Compute the statistics of the data.
         const stats = this._computeStats(buffer, STANDARD_DEV_TYPE.POPULATION);
@@ -869,7 +965,7 @@ export class NetworkTarget extends EventEmitter {
             // Compute the AVT bounds: median +/- stddev
             const boundMin = stats.median - stats.stddev;
             const boundMax = stats.median + stats.stddev;
-            let filteredData = [];
+            const filteredData = [];
             // Perform the AVT filter, excluding the outliers.
             for (const val of buffer) {
                 if ((val >= boundMin) && (val <= boundMax)) {
@@ -885,17 +981,12 @@ export class NetworkTarget extends EventEmitter {
         return result;
     }
 
-/*  ========================================================================
-    Description:    Helper to compute the jitter of the data provided
-
-    @param { [number] } [data] - Array of numbers from which to compute jitter.
-
-    @return {number} - computed jitter
-
-    @throws {TypeError} - Thrown if 'data' is not an array of numbers.
-
-    @remarks - Data is assumed to be the latency.
-    ======================================================================== */
+    /**
+     * @description Helper to compute the jitter of the data provided. 'data' is assumed to contain the latency values.
+     * @param {number[]} data - Array of numbers from which to compute jitter.
+     * @returns {number} - computed jitter
+     * @throws {TypeError} - thrown if 'data' is not an array of numbers.
+     */
     _computeJitter(data) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||

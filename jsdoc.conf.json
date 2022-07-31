@@ -1,0 +1,43 @@
+{
+    "opts": {
+        "encoding": "utf8",
+        "readme": "./.README.jsdoc.md",
+        "tutorials": "./pages/",
+        "template": "./node_modules/docdash",
+        "recurse": true
+    },
+    "plugins": [
+        "plugins/markdown"
+    ],
+    "recurseDepth": 10,
+    "source": {
+        "include": ["src/"],
+        "includePattern": ".+\\.(mjs|js|jsdoc)$",
+        "excludePattern": ".+\\.test.(mjs|js|jsdoc)$"
+    },
+    "sourceType": "module",
+    "tags": {
+        "allowUnknownTags": false,
+        "dictionaries": ["jsdoc","closure"]
+    },
+    "templates": {
+        "cleverLinks": true,
+        "monospaceLinks": false,
+        "default": {
+            "includeDate": false
+        }
+    },
+    "docdash": {
+        "collapse": true,
+        "menu": {
+            "GrumpTech": {
+                "href":"https://github.com/pricemi115/homebridge-grumptech-netnanny",
+                "target": "_blank"
+            }
+        },
+        "search": true,
+        "sectionOrder": ["Modules", "Events", "Interfaces", "Classes", "Tutorials"],
+        "static": true,
+        "typedefs": true
+    }
+}
