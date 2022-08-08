@@ -14,13 +14,6 @@
  * @requires grumptech-spawn-helper
  * @see {@link https://github.com/pricemi115/grumptech-spawn-helper#readme}
  */
-/* ==========================================================================
-   File:               networkTarget.js
-   Class:              Network Target
-   Description:        Monitors network performance for a target based on
-                       ping results.
-   Copyright:          Mar 2021
-   ========================================================================== */
 
 // External dependencies and imports.
 import _debugModule from 'debug';
