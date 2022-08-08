@@ -1,7 +1,53 @@
-/**
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>main.mjs - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/pricemi115/homebridge-grumptech-netnanny" target="_blank" >GrumpTech</a></h2><h3>Modules</h3><ul><li><a href="module-NetNannyModule.html">NetNannyModule</a></li><li><a href="module-NetworkTargetModule.html">NetworkTargetModule</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-license.html">license</a></li><li><a href="tutorial-security.html">security</a></li></ul>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">main.mjs</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
  * @description Homebridge integration for Net Nanny
  * @copyright 2021
- * @author Mike Price <dev.grumptech@gmail.com>
+ * @author Mike Price &lt;dev.grumptech@gmail.com>
  * @module NetNannyModule
  * @requires debug
  * @see {@link https://github.com/debug-js/debug#readme}
@@ -174,59 +220,59 @@ class NetworkPerformanceMonitorPlatform {
         if (theSettings != undefined) {
             const commonTargetConfig = {};
             /* Get the ping count */
-            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_count')) && (typeof(theSettings.ping_count) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_count')) &amp;&amp; (typeof(theSettings.ping_count) === 'number')) {
                 commonTargetConfig.ping_count = theSettings.ping_count;
             }
             /* Get the packet size */
-            if ((Object.prototype.hasOwnProperty.call(theSettings, 'packet_size')) && (typeof(theSettings.packet_size) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'packet_size')) &amp;&amp; (typeof(theSettings.packet_size) === 'number')) {
                 commonTargetConfig.packet_size = theSettings.packet_size;
             }
             /* Get the ping period */
-            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_period')) && (typeof(theSettings.ping_period) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_period')) &amp;&amp; (typeof(theSettings.ping_period) === 'number')) {
                 commonTargetConfig.ping_period = theSettings.ping_period;
             }
             /* Get the ping interval */
-            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_interval')) && (typeof(theSettings.ping_interval) === 'number')) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_interval')) &amp;&amp; (typeof(theSettings.ping_interval) === 'number')) {
                 commonTargetConfig.ping_interval = theSettings.ping_interval;
             }
 
             /* Ping Target Specific configuration settings */
-            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_targets')) && (Array.isArray(theSettings.ping_targets))) {
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_targets')) &amp;&amp; (Array.isArray(theSettings.ping_targets))) {
                 for (const itemConfig of  theSettings.ping_targets) {
                     // Start with the common configs.
                     const targetConfig = commonTargetConfig;
 
                     if (typeof(itemConfig) === 'object') {
                         /* Get the Target Type */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_type')) && (typeof(itemConfig.target_type) === 'string')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_type')) &amp;&amp; (typeof(itemConfig.target_type) === 'string')) {
                             targetConfig.target_type = itemConfig.target_type;
                         }
                         /* Get the Target Destination */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_dest')) && (typeof(itemConfig.target_dest) === 'string')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_dest')) &amp;&amp; (typeof(itemConfig.target_dest) === 'string')) {
                             targetConfig.target_dest = itemConfig.target_dest;
                         }
                         /* Get the nominal ping latency */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_latency')) && (typeof(itemConfig.expected_latency) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_latency')) &amp;&amp; (typeof(itemConfig.expected_latency) === 'number')) {
                             targetConfig.expected_latency = itemConfig.expected_latency;
                         }
                         /* Get the nominal ping stamdard deviation */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_jitter')) && (typeof(itemConfig.expected_jitter) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'expected_jitter')) &amp;&amp; (typeof(itemConfig.expected_jitter) === 'number')) {
                             targetConfig.expected_jitter = itemConfig.expected_jitter;
                         }
                         /* Get the packet loss limit */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'loss_limit')) && (typeof(itemConfig.loss_limit) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'loss_limit')) &amp;&amp; (typeof(itemConfig.loss_limit) === 'number')) {
                             targetConfig.loss_limit = itemConfig.loss_limit;
                         }
                         /* Get the peak reset time (hr) */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'peak_expiration')) && (typeof(itemConfig.peak_expiration) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'peak_expiration')) &amp;&amp; (typeof(itemConfig.peak_expiration) === 'number')) {
                             targetConfig.peak_expiration = itemConfig.peak_expiration;
                         }
                         /* Get the data filter time window (sec) */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'data_filter_time_window')) && (typeof(itemConfig.data_filter_time_window) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'data_filter_time_window')) &amp;&amp; (typeof(itemConfig.data_filter_time_window) === 'number')) {
                             targetConfig.data_filter_time_window = itemConfig.data_filter_time_window;
                         }
                         /* Get the sensor alert mask */
-                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'sensor_alert_mask')) && (typeof(itemConfig.sensor_alert_mask) === 'number')) {
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'sensor_alert_mask')) &amp;&amp; (typeof(itemConfig.sensor_alert_mask) === 'number')) {
                             targetConfig.alert_mask = itemConfig.sensor_alert_mask;
                         }
 
@@ -383,9 +429,9 @@ class NetworkPerformanceMonitorPlatform {
 
                 // Compute the fault statuses
                 const threshold     = (3.0*results.sender.ExpectedJitter);
-                const latencyFault  = (results.error || (latencyBufferFilled  && (results.ping_latency_ms > (results.sender.ExpectedJitter + threshold))));
-                const jitterFault   = (results.error || (jitterBufferFilled && (results.ping_jitter > results.sender.ExpectedJitter)));
-                const lossFault     = ((lossBufferFilled && (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
+                const latencyFault  = (results.error || (latencyBufferFilled  &amp;&amp; (results.ping_latency_ms > (results.sender.ExpectedJitter + threshold))));
+                const jitterFault   = (results.error || (jitterBufferFilled &amp;&amp; (results.ping_jitter > results.sender.ExpectedJitter)));
+                const lossFault     = ((lossBufferFilled &amp;&amp; (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
 
                 // Determine if the peaks have expired.
                 /* eslint-disable new-cap */
@@ -461,7 +507,7 @@ class NetworkPerformanceMonitorPlatform {
         if ((id === undefined) || (typeof(id) !== 'string')) {
             throw new TypeError(`id must be a string`);
         }
-        if (id.length <= 0) {
+        if (id.length &lt;= 0) {
             throw new RangeError(`id must be a non-zero length string.`);
         }
         if (this._accessories.has(id)) {
@@ -532,13 +578,13 @@ class NetworkPerformanceMonitorPlatform {
         // Does this accessory have a Switch service?
         let switchState = true;
         const serviceSwitch = accessory.getService(_hap.Service.Switch);
-        if ((serviceSwitch !== undefined) &&
+        if ((serviceSwitch !== undefined) &amp;&amp;
             (serviceSwitch instanceof _hap.Service.Switch)) {
             // Set the switch to the stored setting (the default is on).
             const theSettings = accessory.context.SETTINGS;
-            if ((theSettings !== undefined) &&
-                (typeof(theSettings) === 'object') &&
-                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState') &&
+            if ((theSettings !== undefined) &amp;&amp;
+                (typeof(theSettings) === 'object') &amp;&amp;
+                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState') &amp;&amp;
                 (typeof(theSettings.SwitchState) === 'boolean'))) {
                 // Modify the settings
                 switchState = theSettings.SwitchState;
@@ -607,11 +653,11 @@ class NetworkPerformanceMonitorPlatform {
         }
         if ((serviceInfo === undefined) ||
             (typeof(serviceInfo) != 'object') ||
-            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length <= 0)        ) ||
-            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length <= 0)        ) ||
-            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length <= 0)        ) ||
-            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length <= 0)        ) ||
-            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length <= 0) ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'uuid')         || (typeof(serviceInfo.uuid)         !== 'string') || (serviceInfo.uuid.length &lt;= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'name')         || (typeof(serviceInfo.name)         !== 'string') || (serviceInfo.name.length &lt;= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'udst')         || (typeof(serviceInfo.udst)         !== 'string') || (serviceInfo.udst.length &lt;= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'peak')         || (typeof(serviceInfo.peak)         !== 'string') || (serviceInfo.peak.length &lt;= 0)        ) ||
+            (!Object.prototype.hasOwnProperty.call(serviceInfo, 'data_buffer')  || (typeof(serviceInfo.data_buffer)  !== 'string') || (serviceInfo.data_buffer.length &lt;= 0) ) ||
             (!Object.prototype.hasOwnProperty.call(serviceInfo, 'alert_mask')   || (typeof(serviceInfo.alert_mask)   !== 'number')                                          )   ) {
             throw new TypeError(`serviceName does not conform to a SERVICE_INFO item.`);
         }
@@ -625,7 +671,7 @@ class NetworkPerformanceMonitorPlatform {
 
         // Attempt to get the named service and validate that it is a Carbon Dioxie Sensor
         const serviceCO2Ping = accessory.getServiceById(serviceInfo.uuid, serviceInfo.udst);
-        if ((serviceCO2Ping !== undefined) &&
+        if ((serviceCO2Ping !== undefined) &amp;&amp;
             (serviceCO2Ping instanceof _hap.Service.CarbonDioxideSensor)) {
             try {
                 // Get the network performance target for this accessory
@@ -635,7 +681,7 @@ class NetworkPerformanceMonitorPlatform {
                 /* eslint-disable max-len */
                 const faultCode = (values.fault                                                   ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
                 // eslint-disable-next-line new-cap
-                const co2Level  = ((target.IsAlertActive(serviceInfo.alert_mask) && values.fault) ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
+                const co2Level  = ((target.IsAlertActive(serviceInfo.alert_mask) &amp;&amp; values.fault) ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 /* eslint-enable max-len */
                 // Determine the low battery status based on being active or not.
                 const batteryStatus = (values.active ? _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_NORMAL : _hap.Characteristic.StatusLowBattery.BATTERY_LEVEL_LOW);
@@ -759,7 +805,7 @@ class NetworkPerformanceMonitorPlatform {
     _handleOnGet(id, callback) {
         // Validate arguments
         if ((id === undefined) ||
-            (typeof(id) !== 'string') || (id.length <= 0)) {
+            (typeof(id) !== 'string') || (id.length &lt;= 0)) {
             throw new TypeError(`id must be a non-zero length string.`);
         }
 
@@ -802,7 +848,7 @@ class NetworkPerformanceMonitorPlatform {
     _handleOnSet(id, value, callback) {
         // Validate arguments
         if ((id === undefined) ||
-            (typeof(id) !== 'string') || (id.length <= 0)) {
+            (typeof(id) !== 'string') || (id.length &lt;= 0)) {
             throw new TypeError(`id must be a non-zero length string.`);
         }
 
@@ -814,9 +860,9 @@ class NetworkPerformanceMonitorPlatform {
             // Store the state of the switch so that when the plugin is restarted, we will restore the
             // switch state as it was last set.
             const theSettings = accessory.context.SETTINGS;
-            if ((theSettings !== undefined) &&
-                (typeof(theSettings) === 'object') &&
-                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState')) &&
+            if ((theSettings !== undefined) &amp;&amp;
+                (typeof(theSettings) === 'object') &amp;&amp;
+                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState')) &amp;&amp;
                 (typeof(theSettings.SwitchState) === 'boolean')) {
                 // Modify the settings
                 theSettings.SwitchState = value;
@@ -942,3 +988,32 @@ export default (homebridgeAPI) => {
     _debug(`Registering platform: ${_PackageInfo.CONFIG_INFO.platform}`);
     homebridgeAPI.registerPlatform(_PackageInfo.CONFIG_INFO.platform, NetworkPerformanceMonitorPlatform);
 };
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+<script src="scripts/collapse.js" defer></script>
+
+
+</body>
+</html>

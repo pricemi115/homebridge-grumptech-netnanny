@@ -1,7 +1,53 @@
-/**
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>networkTarget.mjs - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/pricemi115/homebridge-grumptech-netnanny" target="_blank" >GrumpTech</a></h2><h3>Modules</h3><ul><li><a href="module-NetNannyModule.html">NetNannyModule</a></li><li><a href="module-NetworkTargetModule.html">NetworkTargetModule</a></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-license.html">license</a></li><li><a href="tutorial-security.html">security</a></li></ul>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">networkTarget.mjs</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
  * @description Monitors network performance for a target based on ping results.
  * @copyright 2021
- * @author Mike Price <dev.grumptech@gmail.com>
+ * @author Mike Price &lt;dev.grumptech@gmail.com>
  * @module NetworkTargetModule
  * @requires debug
  * @see {@link https://github.com/debug-js/debug#readme}
@@ -219,18 +265,18 @@ export class NetworkTarget extends EventEmitter {
         // Check for expected types
         if (config !== undefined) {
             if (                                                   (typeof(config) !== 'object')                          ||
-                ((config.target_type !== undefined)             && (typeof(config.target_type) !== 'string'))             ||
-                ((config.target_dest !== undefined)             && (typeof(config.target_dest) !== 'string'))             ||
-                ((config.loss_limit !== undefined)              && (typeof(config.loss_limit) !== 'number'))              ||
-                ((config.packet_size !== undefined)             && (typeof(config.packet_size) !== 'number'))             ||
-                ((config.ping_period !== undefined)             && (typeof(config.ping_period) !== 'number'))             ||
-                ((config.ping_interval !== undefined)           && (typeof(config.ping_count) !== 'number'))              ||
-                ((config.ping_count !== undefined)              && (typeof(config.ping_count) !== 'number'))              ||
-                ((config.peak_expiration !== undefined)         && (typeof(config.peak_expiration) !== 'number'))         ||
-                ((config.expected_latency !== undefined)        && (typeof(config.expected_latency) !== 'number'))        ||
-                ((config.expected_jitter !== undefined)         && (typeof(config.expected_jitter) !== 'number'))         ||
-                ((config.data_filter_time_window !== undefined) && (typeof(config.data_filter_time_window) !== 'number')) ||
-                ((config.alert_mask !== undefined)              && (typeof(config.alert_mask) !== 'number'))                ) {
+                ((config.target_type !== undefined)             &amp;&amp; (typeof(config.target_type) !== 'string'))             ||
+                ((config.target_dest !== undefined)             &amp;&amp; (typeof(config.target_dest) !== 'string'))             ||
+                ((config.loss_limit !== undefined)              &amp;&amp; (typeof(config.loss_limit) !== 'number'))              ||
+                ((config.packet_size !== undefined)             &amp;&amp; (typeof(config.packet_size) !== 'number'))             ||
+                ((config.ping_period !== undefined)             &amp;&amp; (typeof(config.ping_period) !== 'number'))             ||
+                ((config.ping_interval !== undefined)           &amp;&amp; (typeof(config.ping_count) !== 'number'))              ||
+                ((config.ping_count !== undefined)              &amp;&amp; (typeof(config.ping_count) !== 'number'))              ||
+                ((config.peak_expiration !== undefined)         &amp;&amp; (typeof(config.peak_expiration) !== 'number'))         ||
+                ((config.expected_latency !== undefined)        &amp;&amp; (typeof(config.expected_latency) !== 'number'))        ||
+                ((config.expected_jitter !== undefined)         &amp;&amp; (typeof(config.expected_jitter) !== 'number'))         ||
+                ((config.data_filter_time_window !== undefined) &amp;&amp; (typeof(config.data_filter_time_window) !== 'number')) ||
+                ((config.alert_mask !== undefined)              &amp;&amp; (typeof(config.alert_mask) !== 'number'))                ) {
                 throw new TypeError(`Configuration is invalid: ${config.toString()}`);
             }
             // Check for expected values.
@@ -249,7 +295,7 @@ export class NetworkTarget extends EventEmitter {
             }
             if (config.target_dest) {
                 if (config.target_dest.length > 0) {
-                    if ((targetType !== TARGET_TYPES.ROUTER) &&
+                    if ((targetType !== TARGET_TYPES.ROUTER) &amp;&amp;
                         (targetType !== TARGET_TYPES.CABLE_MODEM)) {
                         targetDest = config.target_dest;
                     }
@@ -262,7 +308,7 @@ export class NetworkTarget extends EventEmitter {
                 }
             }
             if (config.loss_limit) {
-                if ((config.loss_limit >= MIN_LOSS_LIMIT) && (config.loss_limit <= MAX_LOSS_LIMIT)) {
+                if ((config.loss_limit >= MIN_LOSS_LIMIT) &amp;&amp; (config.loss_limit &lt;= MAX_LOSS_LIMIT)) {
                     lossLimit = config.loss_limit;
                 }
                 else {
@@ -335,7 +381,7 @@ export class NetworkTarget extends EventEmitter {
                 }
             }
             if (config.alert_mask) {
-                if ((config.alert_mask >= ALERT_BITMASK.NONE) && (config.alert_mask <= ALERT_BITMASK.ALL)) {
+                if ((config.alert_mask >= ALERT_BITMASK.NONE) &amp;&amp; (config.alert_mask &lt;= ALERT_BITMASK.ALL)) {
                     alertBitmask = config.alert_mask;
                 }
                 else {
@@ -413,7 +459,7 @@ export class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.URI:
             {
                 // Ensure that the destination in indeed a URI/URL.
-                if (!_VALIDATOR.isURL(this.TargetDestination) &&
+                if (!_VALIDATOR.isURL(this.TargetDestination) &amp;&amp;
                     (this.TargetDestination !== 'localhost')) {
                     throw new RangeError(`Target Destination is not a URI/URL. ${this.TargetDestination}`);
                 }
@@ -451,7 +497,7 @@ export class NetworkTarget extends EventEmitter {
             }
         }
 
-        // Create an identifier based on the target type & destination.
+        // Create an identifier based on the target type &amp; destination.
         const hash = modCrypto.createHash('sha256');
         hash.update(this._target_type);
         hash.update(this._target_dest);
@@ -559,7 +605,7 @@ export class NetworkTarget extends EventEmitter {
     IsBufferFilled(buffer_type) {
         // Validate arguments
         if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
-            (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) < 0)) {
+            (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) &lt; 0)) {
             throw new TypeError(`buffer_type not a member of DATA_BUFFER_TYPES. ${buffer_type}`);
         }
 
@@ -581,7 +627,7 @@ export class NetworkTarget extends EventEmitter {
     IsPeakExpired(peak_type) {
         // Validate arguments
         if ((peak_type === undefined) || (typeof(peak_type) !== 'string') ||
-            (Object.values(PEAK_TYPES).indexOf(peak_type) < 0)) {
+            (Object.values(PEAK_TYPES).indexOf(peak_type) &lt; 0)) {
             throw new TypeError(`peak_type not a member of PEAK_TYPES. ${peak_type}`);
         }
 
@@ -605,7 +651,7 @@ export class NetworkTarget extends EventEmitter {
     UpdatePeakTime(peak_type) {
         // Validate arguments
         if ((peak_type === undefined) || (typeof(peak_type) !== 'string') ||
-            (Object.values(PEAK_TYPES).indexOf(peak_type) < 0)) {
+            (Object.values(PEAK_TYPES).indexOf(peak_type) &lt; 0)) {
             throw new TypeError(`peak_type not a member of PEAK_TYPES. ${peak_type}`);
         }
 
@@ -625,12 +671,12 @@ export class NetworkTarget extends EventEmitter {
     IsAlertActive(alert_mask) {
         // Validate arguments
         if ((alert_mask === undefined) || (typeof(alert_mask) !== 'number') ||
-            (Object.values(ALERT_BITMASK).indexOf(alert_mask) < 0)) {
+            (Object.values(ALERT_BITMASK).indexOf(alert_mask) &lt; 0)) {
             throw new TypeError(`alert_mask not a member of ALERT_BITMASK. ${alert_mask}`);
         }
 
         // Determine is the alert(s) is(are) active.
-        const active = ((alert_mask & this._alertMask) === alert_mask);
+        const active = ((alert_mask &amp; this._alertMask) === alert_mask);
 
         return active;
     }
@@ -690,7 +736,7 @@ export class NetworkTarget extends EventEmitter {
         // If a ping is not in progress, the desired delay will be used instead.
         let delay = 1.0;
 
-        if (!this._pingInProgress &&
+        if (!this._pingInProgress &amp;&amp;
             (this.TargetDestination.length > 0)) {
             // Mark that the check is in progress.
             this._pingInProgress = true;
@@ -731,7 +777,7 @@ export class NetworkTarget extends EventEmitter {
                                  [DATA_BUFFER_TYPES.LOSS,  true]]);
         /* eslint-disable indent */
 
-        if (response.valid &&
+        if (response.valid &amp;&amp;
             (response.result !== undefined)) {
             const lines = response.result.toString().split('\n');
 
@@ -741,7 +787,7 @@ export class NetworkTarget extends EventEmitter {
             const RAW_PING_SEQ_TAG = 'icmp_seq=';
             const rawPingTime = [];
             let rawPingLossCount = 0;
-            for (let index=0; index<lines.length; index++) {
+            for (let index=0; index&lt;lines.length; index++) {
                 // Search for lines that provide raw ping results.
                 if (lines[index].toLowerCase().includes(RAW_PING_SEQ_TAG)) {
                     const RAW_PING_TIME_PREFIX = 'time=';
@@ -763,7 +809,7 @@ export class NetworkTarget extends EventEmitter {
 
             // Compute and Record the Ping results.
             const totalReadings = (rawPingLossCount + rawPingTime.length);
-            err = (totalReadings <= 0);
+            err = (totalReadings &lt;= 0);
             if (!err) {
                 // Compute and Record Packet Loss.
                 const loss = (rawPingLossCount / totalReadings) * 100.0;
@@ -787,7 +833,7 @@ export class NetworkTarget extends EventEmitter {
 
                 // Determine if the buffers need to be purged.
                 this._dataBuffers.forEach((value, key) => {
-                    if ((value.length < this._data_buffer_size)) {
+                    if ((value.length &lt; this._data_buffer_size)) {
                         // Mark this buffer as not needing to be removed.
                         removeOld.set(key, false);
                     }
@@ -835,7 +881,7 @@ export class NetworkTarget extends EventEmitter {
         _debug(response.result);
 
         if (TARGET_TYPES.GATEWAY === this._target_type) {
-            if (response.valid &&
+            if (response.valid &amp;&amp;
                 (response.result !== undefined)) {
                 const GATEWAY_HEADER = 'gateway: ';
 
@@ -844,7 +890,7 @@ export class NetworkTarget extends EventEmitter {
                     if (line.includes(GATEWAY_HEADER)) {
                         const startIndex = line.indexOf(GATEWAY_HEADER);
 
-                        if ((startIndex >= 0) &&
+                        if ((startIndex >= 0) &amp;&amp;
                             (line.length > (startIndex + GATEWAY_HEADER.length))) {
                             // set the destination to the gateway.
                             this._target_dest = line.substr(startIndex + GATEWAY_HEADER.length);
@@ -884,7 +930,7 @@ export class NetworkTarget extends EventEmitter {
     _computeStats(data, type) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||
-            (data.length < 0)) {
+            (data.length &lt; 0)) {
             throw new TypeError(`data is not an array of numbers.`);
         }
         for (const val of data) {
@@ -892,8 +938,8 @@ export class NetworkTarget extends EventEmitter {
                 throw new TypeError(`data contains non-numeric items.`);
             }
         }
-        if ((type !== undefined) &&
-            ((typeof(type) !== 'number') || (Object.values(STANDARD_DEV_TYPE).indexOf(type) < 0))) {
+        if ((type !== undefined) &amp;&amp;
+            ((typeof(type) !== 'number') || (Object.values(STANDARD_DEV_TYPE).indexOf(type) &lt; 0))) {
             throw new TypeError(`type is not an valid.`);
         }
 
@@ -908,7 +954,7 @@ export class NetworkTarget extends EventEmitter {
         let s = 0;
         let max = Number.NEGATIVE_INFINITY;
         let min = Number.POSITIVE_INFINITY;
-        for (let index=0; index < theData.length; index++) {
+        for (let index=0; index &lt; theData.length; index++) {
             const val = theData[index];
             const lastMean = mean;
 
@@ -916,7 +962,7 @@ export class NetworkTarget extends EventEmitter {
             s += ((val-mean)*(val-lastMean));
 
             // Update the minimum and maximum as well.
-            if (val < min) {
+            if (val &lt; min) {
                 min = val;
             }
             if (val > max) {
@@ -951,7 +997,7 @@ export class NetworkTarget extends EventEmitter {
     _computeAVT(buffer_type) {
         // Validate arguments
         if ((buffer_type === undefined) || (typeof(buffer_type) !== 'string') ||
-            (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) < 0)) {
+            (Object.values(DATA_BUFFER_TYPES).indexOf(buffer_type) &lt; 0)) {
             throw new TypeError(`buffer_type not a member of DATA_BUFFER_TYPES. ${buffer_type}`);
         }
 
@@ -972,7 +1018,7 @@ export class NetworkTarget extends EventEmitter {
             const filteredData = [];
             // Perform the AVT filter, excluding the outliers.
             for (const val of buffer) {
-                if ((val >= boundMin) && (val <= boundMax)) {
+                if ((val >= boundMin) &amp;&amp; (val &lt;= boundMax)) {
                     filteredData.push(val);
                 }
             }
@@ -995,7 +1041,7 @@ export class NetworkTarget extends EventEmitter {
     _computeJitter(data) {
         // Validate arguments
         if ((data === undefined) || (!Array.isArray(data)) ||
-            (data.length <= 0)) {
+            (data.length &lt;= 0)) {
             throw new TypeError(`data is not an array of numbers or there is not enough data.`);
         }
         for (const val of data) {
@@ -1005,7 +1051,7 @@ export class NetworkTarget extends EventEmitter {
         }
 
         let sum = 0;
-        for (let index=1; index < data.length; index++) {
+        for (let index=1; index &lt; data.length; index++) {
             // Sum the difference
             sum += Math.abs(data[index] - data[index-1]);
         }
@@ -1016,3 +1062,32 @@ export class NetworkTarget extends EventEmitter {
         return jitter;
     }
 }
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.6.11</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+<script src="scripts/collapse.js" defer></script>
+
+
+</body>
+</html>
