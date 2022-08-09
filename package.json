@@ -13,7 +13,8 @@
     "CHANGELOG.md",
     "LICENSE.md",
     "SECURITY.md",
-    "assets/"
+    "assets/",
+    "docs/"
   ],
   "config_info": {
     "remarks": [
