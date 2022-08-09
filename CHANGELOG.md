@@ -3,6 +3,19 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+
+## [1.4.6] 2022-AUG-1908
+### Fixes
+- Updating depndencies to resolve CVE-2022-25858.
+
+### What's new
+- Updated infrastructure to:
+- > Switch from Rollup to Webpack for bundling.
+- > Updated to use JSDoc for code documentation
+- > Cleaned up code with ESLint
+- > Implemented unit testing via Jest
+
+---
 ## [1.4.4] 2022-JUN-19
 ### Fixes
 - Resolving issue with a hard-coded path resulting in a crash on every system other than my development system. Sorry 😔
