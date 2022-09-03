@@ -568,6 +568,15 @@ export class NetworkTarget extends EventEmitter {
     }
 
     /**
+     * @description Read Property accessor for the target type
+     * @returns {TARGET_TYPES} - type of target
+     * @private
+     */
+    get TargetType() {
+        return this._target_type;
+    }
+
+    /**
      * @description Read Property accessor for the expected ping latency
      * @returns {number} - time, in milliseconds, expected for the ping latency.
      * @private

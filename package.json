@@ -1,7 +1,7 @@
 {
   "name": "homebridge-grumptech-netnanny",
   "displayName": "Homebridge Net Nanny",
-  "version": "1.4.6",
+  "version": "1.5.0",
   "description": "Network performance monitor.",
   "type": "module",
   "main": "dist/homebridge-grumptech-netnanny.js",
@@ -31,14 +31,14 @@
   "scripts": {
     "clean": "setopt localoptions rmstarsilent; rm -rf ./dist/*; rm -rf ./docs/*",
     "prepare": "npm run build",
-    "build_dbg": "npx webpack --mode=development",
+    "build_dbg": "npm run clean; npx webpack --mode=development",
     "build": "npm run clean; npm run docs; npx webpack --mode=production",
     "docs": "docDir='./docs'; [[ -e \"$docDir\" ]] && rm -rf \"$docDir/\"*; mkdir -p ./pages; wait; cp ./security.md ./pages/; wait; cp ./license.md ./pages/; wait; npx jsdoc -c ./jsdoc.conf.json --destination \"$docDir/\"",
     "docs-dev": "docDir='./docs-dev'; [[ -e \"$docDir\" ]] && rm -rf \"$docDir/\"*; mkdir -p ./pages; wait; cp ./security.md ./pages/; cp ./license.md ./pages/; npx jsdoc -c ./jsdoc.conf.json --destination \"$docDir/\" --private",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest"
   },
   "engines": {
-    "homebridge": ">=1.3.4"
+    "homebridge": ">=1.5.0"
   },
   "keywords": [
     "homebridge",
@@ -67,11 +67,14 @@
     "jest": "^28.1.2",
     "jsdoc": "^3.6.11",
     "webpack": "^5.73.0",
-    "webpack-cli": "^4.10.0"
+    "webpack-cli": "^4.10.0",
+    "webpack-node-externals": "^3.0.0"
   },
   "dependencies": {
     "debug": "^4.3.4",
     "grumptech-spawn-helper": "^1.2.0",
+    "is": "^3.3.0",
+    "sqlite3": "^5.0.11",
     "validator": "^13.7.0"
   }
 }

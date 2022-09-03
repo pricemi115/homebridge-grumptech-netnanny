@@ -43,6 +43,45 @@
                         "minimum": 56,
                         "required": false
                     },
+                    "enable_history_logging": {
+                        "title": "Enable Logging of Network Performance",
+                        "description": "Enable logging of network performance characteristics for offline analysis.",
+                        "type": "boolean",
+                        "default": true,
+                        "required": true
+                    },
+                    "history_logging": {
+                        "title": "History Logging",
+                        "description": "Setting to control logging of network performance characteristics.",
+                        "type": "object",
+                        "required": true,
+                        "condition": {
+                            "functionBody": "return (model.settings.enable_history_logging);"
+                        },
+                        "properties": {
+                            "reporting_period": {
+                                "title": "Reporting Period",
+                                "description": "Period, in days, for generating report logs of network performance.",
+                                "type": "number",
+                                "default": 1,
+                                "minimum": 0.041667,
+                                "maximum": 100,
+                                "required": true,
+                                "condition": {
+                                    "functionBody": "return (model.settings.volume_customizations[arrayIndices] && model.settings.volume_customizations[arrayIndices].volume_id_method === 'name');"
+                                }
+                            },
+                            "maximum_history_size": {
+                                "title": "Maximum History Size",
+                                "description": "Maximum number of history records to retain.",
+                                "type": "number",
+                                "default": 250000,
+                                "minimum": 2500,
+                                "maximum": 5000000,
+                                "required": true
+                            }
+                        }
+                    },
                     "ping_targets": {
                         "title": "Network Performance Targets",
                         "description": "List of targets to ping.",
@@ -121,12 +160,12 @@
                                     "oneOf": [
                                         { "title": "All", "enum": [7] },
                                         { "title": "None", "enum": [0] },
-                                        { "title": "Time Only", "enum": [1] },
-                                        { "title": "Standard Deviation Only", "enum": [4] },
+                                        { "title": "Latency Only", "enum": [1] },
+                                        { "title": "Jitter Only", "enum": [4] },
                                         { "title": "Packet Loss Only", "enum": [2] },
-                                        { "title": "Time and Packet Loss", "enum": [3] },
-                                        { "title": "Time and Standard Deviation", "enum": [5] },
-                                        { "title": "Packet Loss and Standard Deviation", "enum": [6] }
+                                        { "title": "Latency and Packet Loss", "enum": [3] },
+                                        { "title": "Latency and Jitter", "enum": [5] },
+                                        { "title": "Packet Loss and Jitter", "enum": [6] }
                                     ],
                                     "required": true
                                 }

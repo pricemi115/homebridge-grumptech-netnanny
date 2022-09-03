@@ -2,29 +2,12 @@
 // see: https://stackoverflow.com/questions/46745014/alternative-for-dirname-in-node-js-when-using-es6-modules
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+//import nodeExternals from 'webpack-node-externals';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname  = path.dirname(__filename);
 
-export default [
-/*
-    // output an old-style universal module for use in browsers
-    {
-        entry: './src/main.mjs',
-        output: {
-            path: path.resolve(__dirname, 'dist'),
-            filename: 'homebridge-grumptech-volmon.js',
-            library: {
-                name: 'homebridge-grumptech-volmon',
-                type: 'umd',
-                export: 'default',
-            },
-        },
-        externals: [
-            'child_process', 'fs', 'fs/promises', 'url', 'os', 'path',
-        ],
-    },
-*/
+export default (env, argv) => [
     // output an ES6 module
     {
         entry: './src/main.mjs',
@@ -38,12 +21,13 @@ export default [
                 type: 'module',
             },
         },
-        externals: [
-            'url', 'fs', 'path', 'crypto', 'child_process', 'buffer',
-        ],
+        externalsPresets: {node: true}, // in order to ignore built-in modules like path, fs, etc.
+        externals: {
+            sqlite3: 'sqlite3',
+        },
         module: {
             parser: {
-                javascript: {importMeta: false},
+                javascript: {importMeta: argv.mode === 'production' ? false : true},
             },
         },
     },
