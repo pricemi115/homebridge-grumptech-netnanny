@@ -1541,7 +1541,7 @@ class NetworkPerformanceMonitorPlatform {
                             // Ensure there is data to be logged.
                             if (rows.length > 0) {
                                 // Append the 'history' header
-                                historyContent += `date,name,type,latency (ms),jitter (ms),loss,fault code (bitmask)${_EOL}`;
+                                historyContent += `date,raw time (ms),name,type,latency (ms),jitter (ms),loss,fault code (bitmask)${_EOL}`;
 
                                 // Append the history data.
                                 rows.forEach((row) => {
@@ -1549,7 +1549,7 @@ class NetworkPerformanceMonitorPlatform {
                                     const theDate = new Date(row.date);
                                     // Append the data
                                     // eslint-disable-next-line max-len
-                                    historyContent += `${theDate.toDateString()} @ ${theDate.toTimeString()},${row.target_name},${row.target_type},${row.latency},${row.jitter},${row.loss},${row.fault}${_EOL}`;
+                                    historyContent += `${theDate.toDateString()} @ ${theDate.toTimeString()},${row.date},${row.target_name},${row.target_type},${row.latency},${row.jitter},${row.loss},${row.fault}${_EOL}`;
                                 });
 
                                 // Write the file.
