@@ -14,8 +14,8 @@
  * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/path.html}
  * @requires sqlite3
  * @see {@link https://github.com/TryGhost/node-sqlite3#readme}
- * @requires is
- * @see {@link https://github.com/enricomarino/is}
+ * @requires is-it-check
+ * @see {@link https://github.com/evdama/is-it-check}
  */
 /* eslint-enable jsdoc/valid-types */
 
@@ -73,7 +73,7 @@ import {fileURLToPath as _fileURLToPath} from 'node:url';
 import {EOL as _EOL} from 'node:os';
 import {join as _join, dirname as _dirname} from 'node:path';
 import _sqlite3Module from 'sqlite3';
-import _is from 'is';
+import _is from 'is-it-check';
 
 /**
  * @description Absolute path to this script file.
@@ -507,7 +507,7 @@ class NetworkPerformanceMonitorPlatform {
 
                 // Add this network target to the targets table, if logging is enabled.
                 /* eslint-disable indent */
-                if (!_is.nil(this._db)) {
+                if (!_is.null(this._db)) {
                     this._db.run(`INSERT INTO targets(id, name, type) VALUES(?,?,?)`,
                                 [target.ID, accessory.displayName, target.TargetType]);
                 }
@@ -592,7 +592,7 @@ class NetworkPerformanceMonitorPlatform {
                 this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,    {level: results.packet_loss,     fault: lossFault,    resetPeak: resetPeakLoss,    active: true});
 
                 // Log the data
-                if (!_is.nil(this._db)) {
+                if (!_is.null(this._db)) {
                     // Get the timestap for this record.
                     const timestamp = Date.now();
 
@@ -612,18 +612,18 @@ class NetworkPerformanceMonitorPlatform {
                             INSERT INTO history(date, target_id, data_id)
                             VALUES('${timestamp}', '${id}', $dataKey);
                         `, (err) => {
-                            if (_is.nil(err)) {
+                            if (_is.null(err)) {
                                 // Log the readings
                                 this._db.run(`
                                     INSERT INTO data(latency_val, jitter_val, loss_val, fault_code)
                                     VALUES('${results.ping_latency_ms}', '${results.ping_jitter}', '${results.packet_loss}', '${faultCode}');
                                 `, [], function(err) {
-                                    if (_is.nil(err)) {
+                                    if (_is.null(err)) {
                                         // Execute the history statement.
                                         // 'this' is valid here. Refers to the SQL Statement object.
                                         // eslint-disable-next-line no-invalid-this
                                         stmtHistory.run({$dataKey: this.lastID}, (err) => {
-                                            if (!_is.nil(err)) {
+                                            if (!_is.null(err)) {
                                                 _debug(`Error executing history statement.`);
                                                 _debug(err);
                                             }
@@ -1235,7 +1235,7 @@ class NetworkPerformanceMonitorPlatform {
 
                             // Decouple setting the switch back off.
                             setTimeout((theService) => {
-                                if (!_is.nil(theService)) {
+                                if (!_is.null(theService)) {
                                     this._log.debug(`Switch '${theService.displayName}' forcing off`);
                                     theService.updateCharacteristic(_hap.Characteristic.On, false);
                                 }
@@ -1249,7 +1249,7 @@ class NetworkPerformanceMonitorPlatform {
 
                             // Decouple setting the switch back off.
                             setTimeout((theService) => {
-                                if (!_is.nil(theService)) {
+                                if (!_is.null(theService)) {
                                     this._log.debug(`Switch '${theService.displayName}' forcing off`);
                                     theService.updateCharacteristic(_hap.Characteristic.On, false);
                                 }
@@ -1268,7 +1268,7 @@ class NetworkPerformanceMonitorPlatform {
                 if ((value)) {
                     // Decouple setting the switch back off.
                     setTimeout((theService) => {
-                        if (!_is.nil(theService)) {
+                        if (!_is.null(theService)) {
                             this._log.debug(`Switch '${theService.displayName}' forcing off`);
                             theService.updateCharacteristic(_hap.Characteristic.On, false);
                         }
@@ -1331,7 +1331,7 @@ class NetworkPerformanceMonitorPlatform {
                 theDB.exec(`
                     PRAGMA foreign_keys = ON;
                 `, (err) => {
-                    if (!_is.nil(err)) {
+                    if (!_is.null(err)) {
                         this._log.debug(`Error enabling foreigh keys.`);
                         this._log.debug(err);
                     }
@@ -1351,7 +1351,7 @@ class NetworkPerformanceMonitorPlatform {
                                         type INTEGER NOT NULL DEFAULT 0
                     );
                 `, (err) => {
-                    if (!_is.nil(err)) {
+                    if (!_is.null(err)) {
                         this._log.debug(`Error creating info table.`);
                         this._log.debug(err);
                     }
@@ -1362,7 +1362,7 @@ class NetworkPerformanceMonitorPlatform {
                     INSERT INTO info(plugin_version, homebridge_api_version, homebridge_server_version, hap_library_version, accessory_version)
                     VALUES('${_PackageInfo.PLUGIN_VER}', '${_HomebridgeAPIVersion}', '${_HomebridgeServerVersion}', '${_hap.HAPLibraryVersion()}', ${ACCESSORY_VERSION});
                 `, (err) => {
-                    if (!_is.nil(err)) {
+                    if (!_is.null(err)) {
                         this._log.debug(`Error populating the info table.`);
                         this._log.debug(err);
                     }
@@ -1383,15 +1383,15 @@ class NetworkPerformanceMonitorPlatform {
      * @private
      */
     _initializeHistoryTables(theDB) {
-        if (_is.defined(theDB) &&
-            _is.instance(theDB, _sqlite3.Database)) {
+        if (_is.not.undefined(theDB) &&
+            (theDB instanceof _sqlite3.Database)) {
             theDB.serialize(() => {
                 // Delete the tables if they exist.
                 theDB.exec(`
                     DROP TABLE IF EXISTS history;
                     DROP TABLE IF EXISTS data;
                 `, (err) => {
-                    if (!_is.nil(err)) {
+                    if (!_is.null(err)) {
                         this._log.debug(`Unable to clear history tables.`);
                         this._log.debug(err);
                     }
@@ -1415,7 +1415,7 @@ class NetworkPerformanceMonitorPlatform {
                         FOREIGN KEY (data_id)   REFERENCES data(id)    ON DELETE CASCADE ON UPDATE NO ACTION
                     );
                 `, (err) => {
-                    if (_is.nil(err)) {
+                    if (_is.null(err)) {
                         // Reset the cached export reference
                         this._lastExportTime = INVALID_LAST_EXPORT_TIME;
                     }
@@ -1439,10 +1439,10 @@ class NetworkPerformanceMonitorPlatform {
      */
     _trimHistoryTables(recordLimit) {
         if (_is.integer(recordLimit) && _is.gt(recordLimit, 0) &&
-            !_is.nil(this._db)) {
+            !_is.null(this._db)) {
             // Get the number of rows in the 'data' table.
             this._db.get(`SELECT count(*) AS total FROM data;`, (err, result) => {
-                if (_is.nil(err) && _is.integer(result.total)) {
+                if (_is.null(err) && _is.integer(result.total)) {
                     // Determine if we have exceeded the size limitation
                     if (result.total > recordLimit) {
                         // Compute the number of rows to be trimmed and add a 2% buffer.
@@ -1454,7 +1454,7 @@ class NetworkPerformanceMonitorPlatform {
                                 DELETE FROM data
                                 WHERE id IN (SELECT id from data LIMIT ${trimSize});
                             `, (err) => {
-                                if (!_is.nil(err)) {
+                                if (!_is.null(err)) {
                                     this._log.debug(`Error trimming data`);
                                     this._log.debug(err);
                                 }
@@ -1484,11 +1484,11 @@ class NetworkPerformanceMonitorPlatform {
      * @private
      */
     async _on_export_database(flushHistory) {
-        if (!_is.boolean(flushHistory)) {
+        if (_is.not.boolean(flushHistory)) {
             throw new TypeError(`'flushHistory' must be a boolean.`);
         }
 
-        if (!_is.nil(this._db)) {
+        if (_is.not.null(this._db)) {
             // Get the current timestamp
             const timestamp = new Date(Date.now());
 
@@ -1503,7 +1503,7 @@ class NetworkPerformanceMonitorPlatform {
             this._db.serialize(() => {
                 // Get the header information.
                 this._db.get(`SELECT * FROM info`, (err, result) => {
-                    if (_is.nil(err)) {
+                    if (_is.null(err)) {
                         // Append 'info' header
                         historyContent += `timestamp:,${timestamp.toDateString()} @ ${timestamp.toTimeString()}${_EOL}`;
                         historyContent += `plugin version:,${result.plugin_version}${_EOL}`;
@@ -1537,7 +1537,7 @@ class NetworkPerformanceMonitorPlatform {
                                 ORDER BY
                                     date;
                         `, (err, rows) => {
-                        if (_is.nil(err)) {
+                        if (_is.null(err)) {
                             // Ensure there is data to be logged.
                             if (rows.length > 0) {
                                 // Append the 'history' header
@@ -1554,7 +1554,7 @@ class NetworkPerformanceMonitorPlatform {
 
                                 // Write the file.
                                 _writeFile(fileName, historyContent, (err) => {
-                                    if (!_is.nil(err)) {
+                                    if (!_is.null(err)) {
                                         this._log.debug(`Error exporting history:`);
                                         this._log.debug(err);
                                     }
@@ -1636,9 +1636,9 @@ export default (homebridgeAPI) => {
     // Check access to the storage location.
     _access(_pathStorageRoot, _fsConstants.F_OK, (err) => {
         // Create the storage folder if it does not exist.
-        if (!_is.nil(err)) {
+        if (!_is.null(err)) {
             _mkdir(_pathStorageRoot, (err) => {
-                if (!_is.nil(err)) {
+                if (!_is.null(err)) {
                     _debug(`Unable to create plugin storage folder.`);
                     _debug(err);
                 }
