@@ -19,18 +19,33 @@ To install the plugin manually:
 ## Configuration
 ### _homebridge-config-ui-x_
 This plugin is best experienced when running as a module installed and managed by the [_homebridge-config-ui-x_](https://www.npmjs.com/package/homebridge-config-ui-x) plugin. When running under homebridge-config-ui-x, visiting the plugin settings will allow you to change the polling interval and the low space alarm threshold, as shown below.<br/>
+<div id="config_image_container" style="vertical-align:top;">
+<div id="config_image_plugin" style="width:200px; float:left; vertical-align:top; margin:0px 10px 0px 0px; ">
 <img src="./assets/config-ui-x_settings.png"
      alt="homebridge-config-ui-x plugin settings screen for Net Nanny"
-     style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
-     width="15%">
+     style="padding:2px 2px 2px 2px; border:2px solid;"
+     width="100%">
+</div>
+<div id="config_image_json" style="width:800px; float:left; vertical-align:top; margin:0px 0px 0px 10px; ">
 <img src="./assets/config-ui-x_configjson/Page_0001.png"
      alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny (Page 1)"
-     style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
-     width="35%">
+     style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px;"
+     width="50%">
 <img src="./assets/config-ui-x_configjson/Page_0002.png"
      alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny (Page 2)"
-     style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px; vertical-align:top;"
-     width="35%">
+     style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px;"
+     width="50%">
+<img src="./assets/config-ui-x_configjson/Page_0003.png"
+     alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny (Page 3)"
+     style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px;"
+     width="50%">
+<img src="./assets/config-ui-x_configjson/Page_0004.png"
+     alt="homebridge-config-ui-x plugin configuration JSON settings for Net Nanny (Page 4)"
+     style="padding:2px 2px 2px 2px; border:2px solid; margin:0px 10px 0px 0px;"
+     width="50%">
+</div>
+</div>
+<div style="clear: both;"></div>
 <br/>
 For details on the configuration settings, please refer to the _Configuration Settings_ section below.
 
@@ -51,6 +66,9 @@ Additionally, especially if this system will be running other homebridge modules
 | Ping Interval | The time, in seconds, between each ping request. | ping_interval | Common | Number | Time:seconds | 1 | 1 | N/A ||
 | Ping Count | The number of ping request for each series. | ping_count | Common | Number | Count | 5 | 3 | N/A ||
 | Packet Size | The size, in bytes, of each ping request. | packet_size | Common | Number | Bytes | 56 | 56 | N/A ||
+| Enable History Logging | Enables / Disables logging of ping results | enable_history_logging | Common | Boolean | N/A | True | False | True ||
+| History Reporting Period | The time, in days, for generating report logs of network performance | history_logging:reporting_period | Common | Number | Time:days | 1 | 0.041667 | 100 | |
+| Maximum History Size | Maximum number of result sets to record in the history database | history_logging:maximum_history_size | Common | Number | N/A | 250000 | 2500 | 5000000 ||
 | Target Type | Type of target. | ping_targets:items:target_type | Per Target | String | N/A | ipv4 | uri, ipv4, ipv6, gateway, cable_modem |||
 | Target Destination | Destination for the ping | ping_targets:items:target_dest | Per Target | String ||||| Not applicable for gateway or cable_modem |
 | Packet Loss Limit | The limit, in percent, of lost packets that will be tolerated. | ping_targets:items:loss_limit | Per Target | Number | Percent | 5 | 0 | 100 ||
@@ -64,12 +82,13 @@ Additionally, especially if this system will be running other homebridge modules
 If you would rather manually configure and run the plugin, you will find a sample _config.json_ file in the `./config` folder. It is left to the user to get the plugin up and running within homebridge. Refer to the section above for specifics on the configuration parameters.
 
 ## Usage
-The plugin will create, or restore, a dynamic accessory for each network target specified in the configuration. Each accessory will advertise four services: (1) switch, and (3) carbon dioxide sensors. All of the data presented for the carbon dioxide sensors is the result of the ping results. In an effort to keep outliers from affecting the reported values, a user-specified number of outliers will be excluded from the moving average computation. The outliners that are excluded alternate between the highest then lowest values until the number of values to exclude has been reached.
+The plugin will create, or restore, a dynamic accessory for each network target specified in the configuration. Each accessory will advertise four services: (1) switch, and (3) carbon dioxide sensors. All of the data presented for the carbon dioxide sensors is the result of the ping results. In an effort to keep outliers from affecting the reported values, the data collected will be run through a filter, as discussed below. In addition to the services provided by each network targer, the plugin will adversise an additional a collection of switch services.
 
 - **Power**: A switch, with the name of the Target Destination, that controls the active state of the network performance target.
 - **Latency**: The average ping latency, in milliseconds. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Latency + (3 * Expected Jitter)`
 - **Jitter**: The jitter, in milliseconds, of the ping latency results. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Expected Jitter`
 - **Packet Loss**: The packet loss, in percent. The peak value is also displayed. Alerts are triggered when the reported value exceeds: `Packet Loss Limit`
+- **NetNanny-Switches**: A collection of switches. At the present time, this collection contains a single switch. This switch will be used perform an off-cycle export of the database and flush all existing data.
 
 When the current value for any of the carbon dioxide sensors exceeds the user-specified expected limits, the sensor’s alert will be set and, in addition, the sensor’s _Detected_ value will be set to abnormal levels, if configured. Each Carbon Dioxide sensor can be configured to not set the _Detected_ value to abnormal when a fault is encountered. Setting the _Detected_ value to abnormal levels should result in am alert noticiation from HomeKit.
 
@@ -78,6 +97,8 @@ Because the ping results can be noisy, the results are filtered using the [AVT (
 It should also be noted, that the _Detected_ value will not be set to abnormal until the _Data Filter Time Window_ has elapsed after startup. This will prevent an occasional bad result from immediately resulting in the detection of abnormal carbon dioxide levels at startup.
 
 When the accessory is inactive, the _Active_ and _Low Battery Status_ are set.
+
+When _Enable History Logging_ is active, the filtered ping results will be stored in an in-memory SQLite database. The data will be exported to a CSV data file periodically or upon manual request. The exported data will be saved to a folder named _GrumpTechHomebridgeNetNanny_ located in the homebridge configuration folder. For example, on macOS `~/.homebridge/GrumpTechHomebridgeNetNanny/`.
 
 ## Restrictions
 This module operates by using shell commands to the `ping` and `route` programs. At this time, the plugin assumes macOS output when parsing the results. While the `ping` output is consistent across operating systems, the `route` output is operating system specific. As a result, the `gateway/router` type selection is limited to macOS.

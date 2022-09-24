@@ -4,11 +4,11 @@ Change history for _homebridge-grumptech-netnanny_
 ---
 ---
 
-## [1.5.1] 2022-SEP-15 - Happy Halloween 🎃👻
+## [1.5.1] 2022-OCT-01 - Happy Halloween 🎃👻
 
 ### What's new
-- Supporting historical logging of ping results to a SQLite database.
-  The data are exported to a CSV file periodically or on-demand.
+- Added support for logging of historical ping results to a SQLite database.
+  The logged data are exported to a CSV file periodically or on-demand.
 
 ---
 ## [1.4.6] 2022-AUG-08
