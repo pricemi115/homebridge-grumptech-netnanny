@@ -107,7 +107,17 @@ const DEFAULT_PEAK_EXPIRATION_MS    = 43200000; // 12-hours converted to millise
  */
 const DEFAULT_DATA_FILTER_TIME_SEC  = 180.0;
 
-/* Enumeration for target types */
+/**
+ * @description Enumeration for target types
+ * @readonly
+ * @private
+ * @enum {string}
+ * @property {string} URI - Target type for a URI/URL
+ * @property {string} IPV4 - Target type for an IPV4 ip address
+ * @property {string} IPV6 - Target type for an IPV6 ip address
+ * @property {string} GATEWAY - Target type for a cable modem gateway (192.168.100.1)
+ * @property {string} ROUTER - Target type for the router
+ */
 export const TARGET_TYPES = {
     /* eslint-disable key-spacing */
     URI         : 'uri',
@@ -118,7 +128,15 @@ export const TARGET_TYPES = {
     /* eslint-enable key-spacing */
 };
 
-/* Enumeration for peak types */
+/**
+ * @description Enumeration for peak types
+ * @readonly
+ * @private
+ * @enum {string}
+ * @property {string} LATENCY - Latency peak type
+ * @property {string} JITTER - Jitter peak type
+ * @property {string} LOSS - Packet loss peak type
+ */
 export const PEAK_TYPES = {
     /* eslint-disable key-spacing */
     LATENCY    : 'peak_latency',
@@ -127,7 +145,15 @@ export const PEAK_TYPES = {
     /* eslint-enable key-spacing */
 };
 
-/* Enumeration for data buffer types */
+/**
+ * @description Enumeration for buffer types
+ * @readonly
+ * @private
+ * @enum {string}
+ * @property {string} LATENCY - Latency buffer type
+ * @property {string} JITTER - Jitter buffer type
+ * @property {string} LOSS - Packet loss buffer type
+ */
 export const DATA_BUFFER_TYPES = {
     /* eslint-disable key-spacing */
     LATENCY    : 'data_latency',
@@ -136,7 +162,17 @@ export const DATA_BUFFER_TYPES = {
     /* eslint-enable key-spacing */
 };
 
-/* Enumeration for Alert Types (Bitmask) */
+/**
+ * @description Enumeration for Alert Types (Bitmask)
+ * @readonly
+ * @private
+ * @enum {number}
+ * @property {number} NONE - No alerts
+ * @property {number} LATENCY - Latency alert only
+ * @property {number} LOSS - Packet Loss alert only
+ * @property {number} JITTER - Jitter alert only
+ * @property {number} ALL - All alerts (Latency, Packet Loss, & Jitter)
+ */
 export const ALERT_BITMASK = {
     /* eslint-disable key-spacing */
     NONE    : 0,
@@ -147,8 +183,14 @@ export const ALERT_BITMASK = {
     /* eslint-enable key-spacing */
 };
 
-/* Enumeration for Standard Deviation Types             */
-/*  - Used to set the offset when computning the result */
+/**
+ * @description Enumeration for Standard Deviation Types. Used to set the offset when computing the result.
+ * @readonly
+ * @private
+ * @enum {number}
+ * @property {number} POPULATION = Standard deviation algorithm for population data.
+ * @property {number} SAMPLE = Standard deviation algorithm for a fzed-size sample.
+ */
 const STANDARD_DEV_TYPE = {
     /* eslint-disable key-spacing */
     POPULATION : 0,
@@ -197,7 +239,7 @@ export class NetworkTarget extends EventEmitter {
      * @param {string=} config.expected_latency - Time (in milliseconds) for the expected ping latency.
      * @param {string=} config.expected_jitter - Expected ping jitter (in milliseconds).
      * @param {string=} config.data_filter_time_window - Data filter time period
-     * @param {string=} config.sensor_alert_mask - Bitmask indicating which CO2 sensor alerts are active.
+     * @param {string=} config.alert_mask - Bitmask indicating which CO2 sensor alerts are active.
      * @throws {TypeError} - thrown if the configuration is undefined or any parameters are not of the expected type.
      * @throws {RangeError} - thrown if the configuration parameters are out of bounds.
      * @private
@@ -522,6 +564,15 @@ export class NetworkTarget extends EventEmitter {
     }
 
     /**
+     * @description Read Property accessor for the target type
+     * @returns {TARGET_TYPES} - type of target
+     * @private
+     */
+    get TargetType() {
+        return this._target_type;
+    }
+
+    /**
      * @description Read Property accessor for the expected ping latency
      * @returns {number} - time, in milliseconds, expected for the ping latency.
      * @private
@@ -544,7 +595,7 @@ export class NetworkTarget extends EventEmitter {
      * @returns {boolean} - true if pending, false otherwise.
      * @private
      */
-    get IsTargetSestinationPending() {
+    get IsTargetDestinationPending() {
         return this._destination_pending;
     }
 

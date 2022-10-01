@@ -44,7 +44,8 @@
     
     <section>
         <article>
-            <pre class="prettyprint source linenums"><code>/**
+            <pre class="prettyprint source linenums"><code>/* eslint-disable jsdoc/valid-types */
+/**
  * @description Homebridge integration for Net Nanny
  * @copyright 2021
  * @author Mike Price &lt;dev.grumptech@gmail.com>
@@ -57,7 +58,12 @@
  * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/url.html}
  * @requires path
  * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/path.html}
+ * @requires sqlite3
+ * @see {@link https://github.com/TryGhost/node-sqlite3#readme}
+ * @requires is-it-check
+ * @see {@link https://github.com/evdama/is-it-check}
  */
+/* eslint-enable jsdoc/valid-types */
 
 /*
  * IMPORTANT NOTICE
@@ -108,18 +114,23 @@ import {NetworkTarget as _NetworkTarget,
 
 // External dependencies and imports.
 import _debugModule from 'debug';
-import {readFileSync as _readFileSync} from 'fs';
-import {fileURLToPath as _fileURLToPath} from 'url';
-import {join as _join, dirname as _dirname} from 'path';
+import {readFileSync as _readFileSync, writeFile as _writeFile, access as _access, mkdir as _mkdir, constants as _fsConstants} from 'node:fs';
+import {fileURLToPath as _fileURLToPath} from 'node:url';
+import {EOL as _EOL} from 'node:os';
+import {join as _join, dirname as _dirname} from 'node:path';
+import _sqlite3Module from 'sqlite3';
+import _is from 'is-it-check';
 
 /**
  * @description Absolute path to this script file.
  * @private
+ * @readonly
  */
 const __filename = _fileURLToPath(import.meta.url);
 /**
  * @description Absolute path to the folder of this script file.
  * @private
+ * @readonly
  */
 const __dirname = _dirname(__filename);
 
@@ -129,6 +140,13 @@ const __dirname = _dirname(__filename);
  */
 const _debug = _debugModule('homebridge');
 
+/**
+ * @description Reference to the SQLite API. Used for debugging.
+ * @private
+ * @readonly
+ */
+const _sqlite3 = _sqlite3Module.verbose();
+
 // Internal Constants
 // History:
 //      v1: Initial Release
@@ -136,14 +154,74 @@ const _debug = _debugModule('homebridge');
 /**
  * @description Accessory Version
  * v1: Initial Release,
- * v2: Latency and Jitter,
+ * v2: Latency, Jitter, and Packet Loss
  * @private
+ * @readonly
  */
 const ACCESSORY_VERSION = 2;
 
 /**
- * @description Service identification information
+ * @description Enumeration of accessory types.
+ * @readonly
  * @private
+ * @enum {number}
+ * @property {number} NETWORK_TARGET - Accessory for network targets.
+ * @property {number} OTHER - Accesory for other/general purpose services.
+ */
+const ACCESSORY_TYPES = {
+    /* eslint-disable key-spacing */
+    NETWORK_TARGET : 0,
+    OTHER          : 1,
+    /* eslint-enable key-spacing */
+};
+
+/**
+ * @description Accessory information for the General Purpoe Switch Colleciton
+ * @private
+ * @type {object}
+ * @property {string} uuid - Unique identifier for the general purpose switch collection accessory.
+ * @property {string} name - Name for the general pupose switch collection accessory.
+ * @readonly
+ */
+const GENERAL_PURPOSE_SWITCH_COLLECTION = {
+    uuid: '38E010FD-1F45-4C8D-AF2A-D777538D120C',
+    name: 'NetNanny Switches',
+};
+
+/**
+ * @description Service identification information
+ * @readonly
+ * @private
+ * @enum {object}
+ * @property {object} POWER - Service information for the power (control) switch for each network target.
+ * @property {string} POWER.uuid - Unique identifier for the power (control) switch.
+ * @property {string} POWER.name - Name of the power (control) switch.
+ * @property {string} POWER.udst - User defined subtype for the power (control) switch.
+ * @property {object} LATENCY - Service information for the latency sensor.
+ * @property {string} LATENCY.uuid - Unique identifier for the latency sensor.
+ * @property {string} LATENCY.name - Name of the latency sensor.
+ * @property {string} LATENCY.udst - User defined subtype for the latency sensor.
+ * @property {_TARGET_PEAK_TYPES} LATENCY.peak - Peak type for the latency sensor.
+ * @property {_TARGET_DATA_BUFFER_TYPES} LATENCY.data_buffer - Buffer for the latency sensor.
+ * @property {_TARGET_ALERT_BITMASK} LATENCY.alert_mask - Alert bitmask for the latency sensor.
+ * @property {object} JITTER - Service information for the jitter sensor.
+ * @property {string} JITTER.uuid - Unique identifier for the jitter sensor.
+ * @property {string} JITTER.name - Name of the jitter sensor.
+ * @property {string} JITTER.udst - User defined subtype for the jitter sensor.
+ * @property {_TARGET_PEAK_TYPES} JITTER.peak - Peak type for the jitter sensor.
+ * @property {_TARGET_DATA_BUFFER_TYPES} JITTER.data_buffer - Buffer for the jitter sensor.
+ * @property {_TARGET_ALERT_BITMASK} JITTER.alert_mask - Alert bitmask for the jitter sensor.
+ * @property {object} LOSS - Service information for the packet loss sensor.
+ * @property {string} LOSS.uuid - Unique identifier for the packet loss sensor.
+ * @property {string} LOSS.name - Name of the packet loss sensor.
+ * @property {string} LOSS.udst - User defined subtype for the packet loss sensor.
+ * @property {_TARGET_PEAK_TYPES} LOSS.peak - Peak type for the packet loss sensor.
+ * @property {_TARGET_DATA_BUFFER_TYPES} LOSS.data_buffer - Buffer for the packet loss sensor.
+ * @property {_TARGET_ALERT_BITMASK} LOSS.alert_mask - Alert bitmask for the packet loss sensor.
+ * @property {object} EXPORT - Service information for the export switch.
+ * @property {string} EXPORT.uuid - Unique identifier for the export switch.
+ * @property {string} EXPORT.name - Name of the export switch.
+ * @property {string} EXPORT.udst - User defined subtype for the export switch.
  */
 const SERVICE_INFO = {
     /* eslint-disable key-spacing, max-len */
@@ -151,14 +229,55 @@ const SERVICE_INFO = {
     LATENCY : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Latency`,         udst:`PingLatency`, peak:_TARGET_PEAK_TYPES.LATENCY,    data_buffer:_TARGET_DATA_BUFFER_TYPES.LATENCY,  alert_mask: _TARGET_ALERT_BITMASK.LATENCY},
     JITTER  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Jitter`,          udst:`PingJitter`,  peak:_TARGET_PEAK_TYPES.JITTER,     data_buffer:_TARGET_DATA_BUFFER_TYPES.JITTER,   alert_mask: _TARGET_ALERT_BITMASK.JITTER},
     LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS},
+    EXPORT  : {uuid:`E570C0EB-7B9E-4808-8AE1-FA882061057A`, name:`Export History`,  udst:`ExportHistory`},
     /* eslint-enable key-spacing, max-len */
 };
+
+/**
+ * @description Default time for exporting the database to a CSV file (once per day).
+ * @private
+ * @readonly
+ */
+const DEFAULT_DB_EXPORT_TIME_MS = 86400000/* milliseconds */;
+
+/**
+ * @description Maximum number of records in the history tables.
+ * @private
+ * @readonly
+ */
+const DEFAULT_MAX_HISTORY_RECORDS = 250000;
+
+/**
+ * @description Initial value for the cached last export time.
+ * @private
+ * @readonly
+ */
+const INVALID_LAST_EXPORT_TIME = -1;
+
+/**
+ * @description Flag value for an invalid timeout
+ * @private
+ * @readonly
+ */
+const INVALID_TIMEOUT_ID = -1;
 
 /**
  * @description Package Information
  * @private
  */
 let _PackageInfo;
+
+/**
+ * @description Homebridge API Version
+ * @private
+ */
+let _HomebridgeAPIVersion;
+
+/**
+ * @description Homebridge Server Version
+ * @private
+ */
+let _HomebridgeServerVersion;
 
 /**
  * @description Platform accessory reference
@@ -170,6 +289,12 @@ let _PlatformAccessory  = undefined;
  * @private
  */
 let _hap                = undefined;
+
+/**
+ * @description Root path for custom storage.
+ * @private
+ */
+let _pathStorageRoot = '';
 
 /**
  * @description Homebridge platform for managing the Net Nanny
@@ -190,6 +315,12 @@ class NetworkPerformanceMonitorPlatform {
         this._config  = config;
         this._api     = api;
 
+        // Cached last export.
+        this._lastExportTime = INVALID_LAST_EXPORT_TIME;
+
+        // Flag indicating if an export is in progress.
+        this._exportInProgres = false;
+
         /* My local data */
         this._name = this._config['name'];
 
@@ -207,6 +338,8 @@ class NetworkPerformanceMonitorPlatform {
         this._bindPingReady                 = this._processPingReady.bind(this);
         this._bindDestructorNormal          = this._destructor.bind(this, {cleanup: true});
         this._bindDestructorAbnormal        = this._destructor.bind(this, {exit: true});
+        this._bindExportDatabase            = this._on_export_database.bind(this);
+        this._bindResetHistory              = this._handleResetDatabase.bind(this);
 
         /* Log our creation */
         this._log(`Creating NetworkPerformanceMonitorPlatform`);
@@ -216,8 +349,31 @@ class NetworkPerformanceMonitorPlatform {
         /* Create an empty map for our network performance targets. */
         this._networkPerformanceTargets = new Map();
 
+        /* History Logging */
+        this._enableHistoryLogging = true;
+        this._historyLoggingPeriod = DEFAULT_DB_EXPORT_TIME_MS;
+        this._maximumHistorySize   = DEFAULT_MAX_HISTORY_RECORDS;
+
         // Check for Settings
         if (theSettings != undefined) {
+            /* Get the History Logging settings */
+            /* Get history logging enabled */
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'enable_history_logging')) &amp;&amp; (typeof(theSettings.enable_history_logging) === 'boolean')) {
+                this._enableHistoryLogging = theSettings.enable_history_logging;
+            }
+            /* Get the history logging settings  */
+            if ((Object.prototype.hasOwnProperty.call(theSettings, 'history_logging')) &amp;&amp; (typeof(theSettings.history_logging) === 'object')) {
+                /* Get the history reporting period */
+                if ((Object.prototype.hasOwnProperty.call(theSettings.history_logging, 'reporting_period')) &amp;&amp; (typeof(theSettings.history_logging.reporting_period) === 'number')) {
+                    // The value from the settings is in days. Convert to milliseconds.
+                    this._historyLoggingPeriod = (theSettings.history_logging.reporting_period * (24.0 * 3600000));
+                }
+                /* Get the maximum history reporting size */
+                if ((Object.prototype.hasOwnProperty.call(theSettings.history_logging, 'maximum_history_size')) &amp;&amp; (typeof(theSettings.history_logging.maximum_history_size) === 'number')) {
+                    this._maximumHistorySize = theSettings.history_logging.maximum_history_size;
+                }
+            }
+
             const commonTargetConfig = {};
             /* Get the ping count */
             if ((Object.prototype.hasOwnProperty.call(theSettings, 'ping_count')) &amp;&amp; (typeof(theSettings.ping_count) === 'number')) {
@@ -284,6 +440,15 @@ class NetworkPerformanceMonitorPlatform {
             }
         }
 
+        // Create an in-memory SQLite database for tracking performance history.
+        this._db = undefined;
+        if (this._enableHistoryLogging) {
+            this._db = this._initializeHistoryDatabase();
+        }
+
+        // Timer for exporting the database.
+        this._timeoutIDExportDB = INVALID_TIMEOUT_ID;
+
         // Register for the Did Finish Launching event
         this._api.on('didFinishLaunching', this._bindDoInitialization);
         this._api.on('shutdown', this._bindDestructorNormal);
@@ -304,11 +469,15 @@ class NetworkPerformanceMonitorPlatform {
      * @private
      */
     async _destructor(options, err) {
+        console.log(`Shutdown`);
         // Is there an indication that the system is either exiting or needs to
         // be cleaned up?
         if ((options.exit) || (options.cleanup)) {
             // Cleanup the network performance objects.
+            clearTimeout(this._timeoutIDExportDB);
+            this._db = null;
         }
+
         // Lastly eliminate myself.
         delete this;
     }
@@ -326,7 +495,7 @@ class NetworkPerformanceMonitorPlatform {
         // (i.e. Gateways). Ensure that all npt's are not pending. If any are, then defer initialization.
         let defer = false;
         for (const target of this._networkPerformanceTargets.values()) {
-            if (target.IsTargetSestinationPending) {
+            if (target.IsTargetDestinationPending) {
                 // Give a bit
                 this._log(`Target ${target.ID} is pending. Defer initialization..`);
                 defer = true;
@@ -342,7 +511,7 @@ class NetworkPerformanceMonitorPlatform {
         else {
             this._log(`Homebridge Plug-In ${_PackageInfo.CONFIG_INFO.plugin} has finished launching.`);
 
-            // Flush any accessories that are not from this version or are orphans (no corresponding network performance target).
+            // Flush any accessories that are not from this version, are runtime-only accessories, or are orphans (no corresponding network performance target).
             const accessoriesToRemove = [];
             for (const accessory of this._accessories.values()) {
                 if (!Object.prototype.hasOwnProperty.call(accessory.context, 'VERSION') ||
@@ -352,10 +521,14 @@ class NetworkPerformanceMonitorPlatform {
                     accessoriesToRemove.push(accessory);
                 }
                 else if (!this._networkPerformanceTargets.has(accessory.context.ID)) {
-                    // Orphan accessory
-                    this._log(`Accessory ${accessory.displayName} is an orphan and should be purged.`);
-                    // This accessory needs to be replaced.
-                    accessoriesToRemove.push(accessory);
+                    // Check for orphaned network target accessory.
+                    if (!Object.prototype.hasOwnProperty.call(accessory.context, 'TYPE') ||
+                        (accessory.context.TYPE == ACCESSORY_TYPES.NETWORK_TARGET)) {
+                        // Orphan Network Target accessory
+                        this._log(`Accessory ${accessory.displayName} is an orphan and should be purged.`);
+                        // This accessory needs to be removed.
+                        accessoriesToRemove.push(accessory);
+                    }
                 }
             }
             // Perform the cleanup.
@@ -377,12 +550,30 @@ class NetworkPerformanceMonitorPlatform {
 
                 // Get the accessory to see if it is active or not.
                 const accessory = this._accessories.get(target.ID);
+
+                // Add this network target to the targets table, if logging is enabled.
+                /* eslint-disable indent */
+                if (!_is.null(this._db)) {
+                    this._db.run(`INSERT INTO targets(id, name, type) VALUES(?,?,?)`,
+                                [target.ID, accessory.displayName, target.TargetType]);
+                }
+                /* eslint-enable indent */
+
                 // Is the accessory active?
                 if (this._getAccessorySwitchState(accessory)) {
                     // Start the Network Performance Target.
                     // eslint-disable-next-line new-cap
                     target.Start();
                 }
+            }
+
+            // Manage general purpose accessories and services.
+            this._manageGeneralPurposeAccessories();
+
+            // Manage History Logging specific items
+            if (this._enableHistoryLogging) {
+                // Start the timer for the periodic incremental database export.
+                this._timeoutIDExportDB = setTimeout(this._bindExportDatabase, this._historyLoggingPeriod, false);
             }
         }
     }
@@ -429,9 +620,9 @@ class NetworkPerformanceMonitorPlatform {
 
                 // Compute the fault statuses
                 const threshold     = (3.0*results.sender.ExpectedJitter);
-                const latencyFault  = (results.error || (latencyBufferFilled  &amp;&amp; (results.ping_latency_ms > (results.sender.ExpectedJitter + threshold))));
+                const latencyFault  = (results.error || (latencyBufferFilled &amp;&amp; (results.ping_latency_ms > (results.sender.ExpectedJitter + threshold))));
                 const jitterFault   = (results.error || (jitterBufferFilled &amp;&amp; (results.ping_jitter > results.sender.ExpectedJitter)));
-                const lossFault     = ((lossBufferFilled &amp;&amp; (results.packet_loss > results.sender.TolerableLoss)) ? true : false);
+                const lossFault     = (results.error || (lossBufferFilled &amp;&amp; (results.packet_loss > results.sender.TolerableLoss)));
 
                 // Determine if the peaks have expired.
                 /* eslint-disable new-cap */
@@ -445,6 +636,58 @@ class NetworkPerformanceMonitorPlatform {
                 this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LATENCY, {level: results.ping_latency_ms, fault: latencyFault, resetPeak: resetPeakLatency, active: true});
                 this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.JITTER,  {level: results.ping_jitter,     fault: jitterFault,  resetPeak: resetPeakJitter,  active: true});
                 this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,    {level: results.packet_loss,     fault: lossFault,    resetPeak: resetPeakLoss,    active: true});
+
+                // Log the data
+                if (!_is.null(this._db)) {
+                    // Get the timestap for this record.
+                    const timestamp = Date.now();
+
+                    // Compute the fault code bitmask. Uses the same bitmask as the sensor alerts.
+                    const faultCode = ((latencyFault ? _TARGET_ALERT_BITMASK.LATENCY : _TARGET_ALERT_BITMASK.NONE) |
+                                       (jitterFault  ? _TARGET_ALERT_BITMASK.JITTER  : _TARGET_ALERT_BITMASK.NONE) |
+                                       (lossFault    ? _TARGET_ALERT_BITMASK.LOSS    : _TARGET_ALERT_BITMASK.NONE));
+
+                    // Handle a possible rollover of the date.
+                    if (timestamp &lt; this._lastExportTime) {
+                        this._lastExportTime = timestamp;
+                    }
+
+                    this._db.serialize(()=> {
+                        // Log the history entry.
+                        const stmtHistory = this._db.prepare(`
+                            INSERT INTO history(date, target_id, data_id)
+                            VALUES('${timestamp}', '${id}', $dataKey);
+                        `, (err) => {
+                            if (_is.null(err)) {
+                                // Log the readings
+                                this._db.run(`
+                                    INSERT INTO data(latency_val, jitter_val, loss_val, fault_code)
+                                    VALUES('${results.ping_latency_ms}', '${results.ping_jitter}', '${results.packet_loss}', '${faultCode}');
+                                `, [], function(err) {
+                                    if (_is.null(err)) {
+                                        // Execute the history statement.
+                                        // 'this' is valid here. Refers to the SQL Statement object.
+                                        // eslint-disable-next-line no-invalid-this
+                                        stmtHistory.run({$dataKey: this.lastID}, (err) => {
+                                            if (!_is.null(err)) {
+                                                _debug(`Error executing history statement.`);
+                                                _debug(err);
+                                            }
+                                        });
+                                    }
+                                    else {
+                                        _debug(`Error with SQL Run`);
+                                        _debug(err);
+                                    }
+                                });
+                            }
+                            else {
+                                this._log.debug(`Error preparing the history table.`);
+                                this._log.debug(err);
+                            }
+                        });
+                    });
+                }
             }
         }
         else {
@@ -498,7 +741,7 @@ class NetworkPerformanceMonitorPlatform {
      * @returns {void}
      * @throws {TypeError} - thrown when 'id' is not a string.
      * @throws {RangeError} - thrown when 'id' length is 0
-     * @throws {Error} - thrown when an accessory with 'name' is already registered.
+     * @throws {Error} - thrown when an accessory with 'id' is already registered.
      * @throws {Error} - thrown when there is no matching network performance target.
      * @private
      */
@@ -522,7 +765,8 @@ class NetworkPerformanceMonitorPlatform {
 
         this._log.debug(`Adding new accessory: id:'${id}' target:${target.TargetDestination}`);
 
-        // uuid must be generated from a unique but not changing data source, theName should not be used in the most cases. But works in this specific example.
+        // Create the platform accesory
+        // uuid must be generated from a unique but not changing data source, 'id' should not be used in the most cases. But works in this specific example.
         const uuid = _hap.uuid.generate(id);
         const accessory = new _PlatformAccessory(target.TargetDestination, uuid);
 
@@ -530,6 +774,8 @@ class NetworkPerformanceMonitorPlatform {
         accessory.context.ID = id;
         // Mark the version of the accessory. This is used for depersistence
         accessory.context.VERSION = ACCESSORY_VERSION;
+        // Set the type of accessory.
+        accessory.context.TYPE = ACCESSORY_TYPES.NETWORK_TARGET;
         // Create accessory persisted settings
         accessory.context.SETTINGS = {SwitchState: true};
 
@@ -552,6 +798,60 @@ class NetworkPerformanceMonitorPlatform {
     }
 
     /**
+     * @description Create and register an accessory for the general purpose switch collection
+     * @returns {void}
+     * @throws {Error} - thrown when an accessory with 'name' is already registered.
+     * @private
+     */
+    _addGeneralPurposeSwitchCollectionAccessory() {
+        if (this._accessories.has(GENERAL_PURPOSE_SWITCH_COLLECTION.uuid)) {
+            throw new Error(`Accessory '${GENERAL_PURPOSE_SWITCH_COLLECTION.uuid}' is already registered.`);
+        }
+
+        this._log.debug(`Adding new accessory for a colleciton of general purpose switches: id:'${GENERAL_PURPOSE_SWITCH_COLLECTION.uuid}'`);
+
+        // Create the platform accesory
+        const accessory = new _PlatformAccessory(GENERAL_PURPOSE_SWITCH_COLLECTION.name, GENERAL_PURPOSE_SWITCH_COLLECTION.uuid);
+
+        // Add the identifier to the accessory's context. Used for remapping on depersistence.
+        accessory.context.ID = GENERAL_PURPOSE_SWITCH_COLLECTION.uuid;
+        // Mark the version of the accessory. This is used for depersistence
+        accessory.context.VERSION = ACCESSORY_VERSION;
+        // Set the type of accessory.
+        accessory.context.TYPE = ACCESSORY_TYPES.OTHER;
+        // Create accessory persisted settings. Default the switch state to off.
+        accessory.context.SETTINGS = {SwitchState: false};
+
+        // Create our services.
+        accessory.addService(_hap.Service.Switch, SERVICE_INFO.EXPORT.uuid, SERVICE_INFO.EXPORT.udst);
+
+        try {
+            // Configure the accessory
+            this._configureAccessory(accessory);
+        }
+        catch (error) {
+            this._log.debug(`Error when configuring the general purpose switch collection accessory.`);
+            this._log.debug(error);
+        }
+
+        this._api.registerPlatformAccessories(_PackageInfo.CONFIG_INFO.plugin, _PackageInfo.CONFIG_INFO.platform, [accessory]);
+    }
+
+    /**
+     * @description Helper for managing the general purpose accessories and services.
+     * @returns {void}
+     * @private
+     */
+    _manageGeneralPurposeAccessories() {
+        // Check for the general purpose switch collection.
+        if (!this._accessories.has(GENERAL_PURPOSE_SWITCH_COLLECTION.uuid)) {
+            // There is no matching accessory for this.
+            // Create and register an accessory.
+            this._addGeneralPurposeSwitchCollectionAccessory();
+        }
+    }
+
+    /**
      * @description Performs accessory configuration and internal 'registration' (appending to our list).
      *              Opportunity to setup event handlers for characteristics and update values (as needed).
      * @param {_PlatformAccessory} accessory - Accessory to be configured/registered
@@ -567,8 +867,12 @@ class NetworkPerformanceMonitorPlatform {
 
         this._log.debug('Configuring accessory %s', accessory.displayName);
 
-        // Get the accessory identifier from the contect.
+        // Get the accessory identifier from the context.
         const id = accessory.context.ID;
+
+        // Determine if this is a Network Target accessory or not.
+        const isNetworkTarget = (!Object.prototype.hasOwnProperty.call(accessory.context, 'TYPE') ||
+                                 (accessory.context.TYPE === ACCESSORY_TYPES.NETWORK_TARGET));
 
         // Register to handle the Identify request for the accessory.
         accessory.on(_PlatformAccessory.PlatformAccessoryEvent.IDENTIFY, () => {
@@ -591,29 +895,45 @@ class NetworkPerformanceMonitorPlatform {
             }
             serviceSwitch.updateCharacteristic(_hap.Characteristic.On, switchState);
 
-            // Also update the name, so it is recognizable in the Home app
-            serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, `Power (${accessory.displayName})`);
+            // Also, if this is a Network Target, update the name, so it is recognizable in the Home app.
+            if (isNetworkTarget) {
+                serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, `Power (${accessory.displayName})`);
+            }
+            else if (id === GENERAL_PURPOSE_SWITCH_COLLECTION.uuid) {
+                serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, `Export`);
+            }
 
+            // Get the 'On' characteristic for the switch.
             const charOn = serviceSwitch.getCharacteristic(_hap.Characteristic.On);
             // Register for the "get" event notification.
             charOn.on('get', this._handleOnGet.bind(this, id));
             // Register for the "set" event notification.
-            charOn.on('set', this._handleOnSet.bind(this, id));
-        }
-
-        // Update the names of each service.
-        const infoItems = [SERVICE_INFO.LATENCY, SERVICE_INFO.JITTER, SERVICE_INFO.LOSS];
-        for (const item of infoItems) {
-            const service = accessory.getServiceById(item.uuid, item.udst);
-            if (service !== undefined) {
-                service.updateCharacteristic(_hap.Characteristic.Name, `${item.name}-(${accessory.displayName})`);
+            if (GENERAL_PURPOSE_SWITCH_COLLECTION.uuid == id) {
+                // Event handler for exporting and resetting the databae.
+                charOn.on('set', this._handleResetDatabase.bind(this, id));
+            }
+            else {
+                // Event handler for network target 'power' (enable) state changes.
+                charOn.on('set', this._handleOnSet.bind(this, id));
             }
         }
 
-        // Initialize the Carbon Dioxide Sensors
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LATENCY, {level: 0.0, fault: false, resetPeak: true, active: switchState});
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.JITTER,  {level: 0.0, fault: false, resetPeak: true, active: switchState});
-        this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LOSS,    {level: 0.0, fault: false, resetPeak: true, active: switchState});
+        // Network Target specific.
+        if (isNetworkTarget) {
+            // Update the names of each service.
+            const infoItems = [SERVICE_INFO.LATENCY, SERVICE_INFO.JITTER, SERVICE_INFO.LOSS];
+            for (const item of infoItems) {
+                const service = accessory.getServiceById(item.uuid, item.udst);
+                if (service !== undefined) {
+                    service.updateCharacteristic(_hap.Characteristic.Name, `${item.name}-(${accessory.displayName})`);
+                }
+            }
+
+            // Initialize the Carbon Dioxide Sensors
+            this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LATENCY, {level: 0.0, fault: false, resetPeak: true, active: switchState});
+            this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.JITTER,  {level: 0.0, fault: false, resetPeak: true, active: switchState});
+            this._updateCarbonDioxideSensorService(accessory, SERVICE_INFO.LOSS,    {level: 0.0, fault: false, resetPeak: true, active: switchState});
+        }
 
         // Update the accessory information
         this._updateAccessoryInfo(accessory, {model: 'GrumpTech Network Performance', serialnum: id});
@@ -638,6 +958,7 @@ class NetworkPerformanceMonitorPlatform {
      * @param {object} values             - Object containing the values being set.
      * @param {number  | Error} values.level       - Value to be reported as the CO Level
      * @param {boolean | Error} values.fault       - true if a fault exists.
+     * @param {boolean | Error} values.active      - specifies the low battery status
      * @param {boolean | Error} values.resetPeak   - true if the peak level should be reset.
      * @returns {void}
      * @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
@@ -735,22 +1056,32 @@ class NetworkPerformanceMonitorPlatform {
 
         this._log.debug(`Removing accessory '${accessory.displayName}'`);
 
+        // Get the identification of the accessory.
+        const id = accessory.context.ID;
+
         // Event Handler cleanup.
         accessory.removeAllListeners(_PlatformAccessory.PlatformAccessoryEvent.IDENTIFY);
         // Does this accessory have a Switch service?
         const serviceSwitch = accessory.getService(_hap.Service.Switch);
         if (serviceSwitch !== undefined) {
             const charOn = serviceSwitch.getCharacteristic(_hap.Characteristic.On);
-            // Register for the "get" event notification.
-            charOn.off('get', this._handleOnGet.bind(this, accessory));
-            // Register for the "get" event notification.
-            charOn.off('set', this._handleOnSet.bind(this, accessory));
+            // Unregister for the "get" event notification.
+            charOn.off('get', this._handleOnGet.bind(this, id));
+            // Unregister for the "get" event notification.
+            if (GENERAL_PURPOSE_SWITCH_COLLECTION.uuid == id) {
+                // Event handler for exporting and resetting the databae.
+                charOn.off('set', this._handleResetDatabase.bind(this, id));
+            }
+            else {
+                // Event handler for network target 'power' (enable) state changes.
+                charOn.off('set', this._handleOnSet.bind(this, id));
+            }
         }
 
         /* Unregister the accessory */
         this._api.unregisterPlatformAccessories(_PackageInfo.CONFIG_INFO.plugin, _PackageInfo.CONFIG_INFO.platform, [accessory]);
         /* remove the accessory from our mapping */
-        this._accessories.delete(accessory.context.ID);
+        this._accessories.delete(id);
     }
 
     /**
@@ -857,22 +1188,27 @@ class NetworkPerformanceMonitorPlatform {
             const accessory = this._accessories.get(id);
             this._log.debug(`Ping Power '${accessory.displayName}' Set Request. New state:${value}`);
 
+            // Determine if this event is from a network target accessory.
+            const isNetworkTarget = this._networkPerformanceTargets.has(id);
+
             // Store the state of the switch so that when the plugin is restarted, we will restore the
-            // switch state as it was last set.
-            const theSettings = accessory.context.SETTINGS;
-            if ((theSettings !== undefined) &amp;&amp;
-                (typeof(theSettings) === 'object') &amp;&amp;
-                (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState')) &amp;&amp;
-                (typeof(theSettings.SwitchState) === 'boolean')) {
-                // Modify the settings
-                theSettings.SwitchState = value;
+            // switch state as it was last set. But only do this for Network Targets.
+            if (isNetworkTarget) {
+                const theSettings = accessory.context.SETTINGS;
+                if ((theSettings !== undefined) &amp;&amp;
+                    (typeof(theSettings) === 'object') &amp;&amp;
+                    (Object.prototype.hasOwnProperty.call(theSettings, 'SwitchState')) &amp;&amp;
+                    (typeof(theSettings.SwitchState) === 'boolean')) {
+                    // Modify the settings
+                    theSettings.SwitchState = value;
+                }
+                // Store the updated settings.
+                accessory.context.SETTINGS = theSettings;
             }
-            // Store the updated settings.
-            accessory.context.SETTINGS = theSettings;
 
             try {
                 // Is there a matching network performance target for this 'id'?
-                if (this._networkPerformanceTargets.has(id)) {
+                if (isNetworkTarget) {
                     const target = this._networkPerformanceTargets.get(id);
                     if (target !== undefined) {
                         // Update/reinitialize the accessory data (including the peak, as needed)
@@ -894,7 +1230,7 @@ class NetworkPerformanceMonitorPlatform {
                     }
                 }
                 else {
-                    throw new Error(`id:${id} has no matching network performance target.`);
+                    throw new Error(`id:${id} has no matching network performance target nor any other accessories.`);
                 }
             }
             catch (err) {
@@ -908,6 +1244,89 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         callback(status);
+    }
+
+    /**
+     * @description Event handler for the "set" event for the Switch.On characteristic of the database reset.
+     * @param {string} id - unique identifier for the accessory
+     * @param {boolean} value - new/rewuested state of the switch
+     * @param {Function} callback - Function callback for homebridge.
+     * @returns {void}
+     * @private
+     */
+    _handleResetDatabase(id, value, callback) {
+        this._log.debug(`Reset Database New state:${value}`);
+
+        if (GENERAL_PURPOSE_SWITCH_COLLECTION.uuid == id) {
+            // Get the accessory.
+            const accessory = this._accessories.get(GENERAL_PURPOSE_SWITCH_COLLECTION.uuid);
+
+            // Get the current state of the switch.
+            const serviceSwitch = accessory.getService(_hap.Service.Switch);
+            const currentValue = this._getAccessorySwitchState(accessory);
+
+            if (this._enableHistoryLogging) {
+                if (_is.boolean(value)) {
+                    // Ensure that an export is not currently in progress.
+                    if (!this._exportInProgres) {
+                        if (value &amp;&amp; !currentValue) {
+                            // Stop the existing export timer.
+                            clearTimeout(this._timeoutIDExportDB);
+
+                            // Reset the cashed last export time so that all exting gata will be exported.
+                            this._lastExportTime = INVALID_LAST_EXPORT_TIME;
+
+                            // Immediately queue an export.
+                            this._timeoutIDExportDB = setImmediate(this._bindExportDatabase, true);
+
+                            // Decouple setting the switch back off.
+                            setTimeout((theService) => {
+                                if (!_is.null(theService)) {
+                                    this._log.debug(`Switch '${theService.displayName}' forcing off`);
+                                    theService.updateCharacteristic(_hap.Characteristic.On, false);
+                                }
+                            }, 500, serviceSwitch);
+                        }
+                    }
+                    else {
+                        if (value) {
+                            // Export is in progress. Defer the request to reset the history.
+                            this._log.debug(`Export in progres. Ignoring the request to reset the database.`);
+
+                            // Decouple setting the switch back off.
+                            setTimeout((theService) => {
+                                if (!_is.null(theService)) {
+                                    this._log.debug(`Switch '${theService.displayName}' forcing off`);
+                                    theService.updateCharacteristic(_hap.Characteristic.On, false);
+                                }
+                            }, 500, serviceSwitch);
+                        }
+                    }
+
+                    callback(null);
+                }
+                else {
+                    callback(new TypeError(`value is invalid.`));
+                }
+            }
+            else {
+                // Logging not active. Force switch off if present
+                if ((value)) {
+                    // Decouple setting the switch back off.
+                    setTimeout((theService) => {
+                        if (!_is.null(theService)) {
+                            this._log.debug(`Switch '${theService.displayName}' forcing off`);
+                            theService.updateCharacteristic(_hap.Characteristic.On, false);
+                        }
+                    }, 500, serviceSwitch);
+                }
+                callback(null);
+            }
+        }
+        else {
+            // Unexpected call.
+            callback(new RangeError(`id is invalid.`));
+        }
     }
 
     /**
@@ -941,6 +1360,291 @@ class NetworkPerformanceMonitorPlatform {
 
         return result;
     }
+
+    /**
+     * @description Helper to initialize the in-memory SQL database for recording historical network performance data.
+     * @returns {void}
+     * @private
+     */
+    _initializeHistoryDatabase() {
+        let theDB = undefined;
+
+        if (this._enableHistoryLogging) {
+            theDB = new _sqlite3.Database(':memory:');
+            // Initialize the database
+            theDB.serialize(()=> {
+                // Activate foreigh key support
+                theDB.exec(`
+                    PRAGMA foreign_keys = ON;
+                `, (err) => {
+                    if (!_is.null(err)) {
+                        this._log.debug(`Error enabling foreigh keys.`);
+                        this._log.debug(err);
+                    }
+                });
+                // Create a table for general appliction info.
+                theDB.exec(`
+                    CREATE TABLE info (
+                                        plugin_version            TEXT    NOT NULL,
+                                        homebridge_api_version    TEXT    NOT NULL,
+                                        homebridge_server_version TEXT    NOT NULL,
+                                        hap_library_version       TEXT    NOT NULL,
+                                        accessory_version         INTEGER NOT NULL DEFAULT 0
+                    );
+                    CREATE TABLE targets(
+                                        id   TEXT    NOT NULL PRIMARY KEY DEFAULT 0,
+                                        name TEXT    NOT NULL,
+                                        type INTEGER NOT NULL DEFAULT 0
+                    );
+                `, (err) => {
+                    if (!_is.null(err)) {
+                        this._log.debug(`Error creating info table.`);
+                        this._log.debug(err);
+                    }
+                });
+                // Populate the info table
+                /* eslint-disable new-cap */
+                theDB.exec(`
+                    INSERT INTO info(plugin_version, homebridge_api_version, homebridge_server_version, hap_library_version, accessory_version)
+                    VALUES('${_PackageInfo.PLUGIN_VER}', '${_HomebridgeAPIVersion}', '${_HomebridgeServerVersion}', '${_hap.HAPLibraryVersion()}', ${ACCESSORY_VERSION});
+                `, (err) => {
+                    if (!_is.null(err)) {
+                        this._log.debug(`Error populating the info table.`);
+                        this._log.debug(err);
+                    }
+                });
+                /* eslint-enable new-cap */
+            });
+            // Create the history tables.
+            this._initializeHistoryTables(theDB);
+        }
+
+        return theDB;
+    }
+
+    /**
+     * @description Helper to create/re-create the tables used to record the historical network performance data.
+     * @param {_sqlite3.Database} theDB - reference to the database.
+     * @returns  {void}
+     * @private
+     */
+    _initializeHistoryTables(theDB) {
+        if (_is.not.undefined(theDB) &amp;&amp;
+            (theDB instanceof _sqlite3.Database)) {
+            theDB.serialize(() => {
+                // Delete the tables if they exist.
+                theDB.exec(`
+                    DROP TABLE IF EXISTS history;
+                    DROP TABLE IF EXISTS data;
+                `, (err) => {
+                    if (!_is.null(err)) {
+                        this._log.debug(`Unable to clear history tables.`);
+                        this._log.debug(err);
+                    }
+                });
+
+                // Create the table structure.
+                theDB.exec(`
+                    CREATE TABLE data(
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
+                        latency_val INTEGER NOT NULL DEFAULT 0,
+                        jitter_val  INTEGER NOT NULL DEFAULT 0,
+                        loss_val    INTEGER NOT NULL DEFAULT 0,
+                        fault_code  INTEGER NOT NULL DEFAULT 0
+                    );
+                    CREATE TABLE history(
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
+                        date        INTEGER                           NOT NULL DEFAULT 0,
+                        target_id   TEXT                              NOT NULL,
+                        data_id     INTEGER                           NOT NULL DEFAULT 0,
+                        FOREIGN KEY (target_id) REFERENCES targets(id) ON DELETE CASCADE ON UPDATE NO ACTION,
+                        FOREIGN KEY (data_id)   REFERENCES data(id)    ON DELETE CASCADE ON UPDATE NO ACTION
+                    );
+                `, (err) => {
+                    if (_is.null(err)) {
+                        // Reset the cached export reference
+                        this._lastExportTime = INVALID_LAST_EXPORT_TIME;
+                    }
+                    else {
+                        this._log.debug(`Error creating history tables.`);
+                        this._log.debug(err);
+                    }
+                });
+            });
+        }
+        else {
+            this._log.debug(`Invalid database.`);
+        }
+    }
+
+    /**
+     * @description Helper to maintaiin a reasonable amount of data in the history tables.
+     * @param {number} recordLimit - Maximum number of rows for the data tables.
+     * @returns {void}
+     * @private
+     */
+    _trimHistoryTables(recordLimit) {
+        if (_is.integer(recordLimit) &amp;&amp; _is.gt(recordLimit, 0) &amp;&amp;
+            !_is.null(this._db)) {
+            // Get the number of rows in the 'data' table.
+            this._db.get(`SELECT count(*) AS total FROM data;`, (err, result) => {
+                if (_is.null(err) &amp;&amp; _is.integer(result.total)) {
+                    // Determine if we have exceeded the size limitation
+                    if (result.total > recordLimit) {
+                        // Compute the number of rows to be trimmed and add a 2% buffer.
+                        const trimSize =  Math.ceil((result.total - recordLimit) * 1.02);
+
+                        this._db.serialize(() => {
+                            // Trim the oldest rows
+                            this._db.exec(`
+                                DELETE FROM data
+                                WHERE id IN (SELECT id from data LIMIT ${trimSize});
+                            `, (err) => {
+                                if (!_is.null(err)) {
+                                    this._log.debug(`Error trimming data`);
+                                    this._log.debug(err);
+                                }
+                            });
+                            // Sanity: Make sure that the history table was updated as well
+                            this._db.get(`SELECT count(*) AS totalHistory FROM history;`, (err, result) => {
+                                if (result.totalHistory !== recordLimit) {
+                                    throw Error(`History table is out of sync. Rows=${result.totalHistory} Expected=${recordLimit}`);
+                                }
+                            });
+                        });
+                    }
+                }
+                else {
+                    this._log.debug(`Error gettng number of data records.`);
+                    this._log.debug(err);
+                }
+            });
+        }
+    }
+
+    /**
+     * @description Event handler for the timer indicating that a dataexport is needed.
+     * @param {boolean} flushHistory - Flag indicating that the history data should be reset.
+     * @returns {void}
+     * @throws {TypeError} - thrown if 'resetDB' is not a boolean.
+     * @private
+     */
+    async _on_export_database(flushHistory) {
+        if (_is.not.boolean(flushHistory)) {
+            throw new TypeError(`'flushHistory' must be a boolean.`);
+        }
+
+        if (_is.not.null(this._db)) {
+            // Get the current timestamp
+            const timestamp = new Date(Date.now());
+
+            let errorEncountered = false;
+            this._exportInProgres = true;
+
+            // Build the path for the log file.
+            const fileName = _join(_pathStorageRoot, `History_${timestamp.getTime()}.csv`);
+
+            this._log.debug(`Exporting database: ${fileName}`);
+            let historyContent = '';
+            this._db.serialize(() => {
+                // Get the header information.
+                this._db.get(`SELECT * FROM info`, (err, result) => {
+                    if (_is.null(err)) {
+                        // Append 'info' header
+                        historyContent += `timestamp:,${timestamp.toDateString()} @ ${timestamp.toTimeString()}${_EOL}`;
+                        historyContent += `plugin version:,${result.plugin_version}${_EOL}`;
+                        historyContent += `homebridge api version:,${result.homebridge_api_version}${_EOL}`;
+                        historyContent += `homebridge server version:,${result.homebridge_server_version}${_EOL}`;
+                        historyContent += `hap library version:,${result.hap_library_version}${_EOL}`;
+                        historyContent += `node.js version:,${process.versions.node}${_EOL}`;
+                        historyContent += `accessory version:,${result.accessory_version}${_EOL}`;
+                        historyContent += _EOL;
+                    }
+                    else {
+                        this._log.debug(`Error getting info table.`);
+                        this._log.debug(err);
+                        errorEncountered = true;
+                        this._exportInProgres = false;
+                    }
+                });
+
+                // Collect the history data.
+                if (!errorEncountered) {
+                    this._db.all(`
+                                SElECT
+                                    date, t.name AS target_name, t.type AS target_type, d.latency_val AS latency, d.jitter_val AS jitter, d.loss_val AS loss, d.fault_code as fault
+                                    FROM history h
+                                INNER JOIN targets t
+                                    ON t.id = target_id
+                                INNER JOIN data d
+                                    ON d.id = data_id
+                                WHERE
+                                    date > ${this._lastExportTime}
+                                ORDER BY
+                                    date;
+                        `, (err, rows) => {
+                        if (_is.null(err)) {
+                            // Ensure there is data to be logged.
+                            if (rows.length > 0) {
+                                // Append the 'history' header
+                                historyContent += `date,raw time (ms),name,type,latency (ms),jitter (ms),loss,fault code (bitmask)${_EOL}`;
+
+                                // Append the history data.
+                                rows.forEach((row) => {
+                                    // Get the date of the record
+                                    const theDate = new Date(row.date);
+                                    // Append the data
+                                    // eslint-disable-next-line max-len
+                                    historyContent += `${theDate.toDateString()} @ ${theDate.toTimeString()},${row.date},${row.target_name},${row.target_type},${row.latency},${row.jitter},${row.loss},${row.fault}${_EOL}`;
+                                });
+
+                                // Write the file.
+                                _writeFile(fileName, historyContent, (err) => {
+                                    if (!_is.null(err)) {
+                                        this._log.debug(`Error exporting history:`);
+                                        this._log.debug(err);
+                                    }
+                                });
+
+                                // Update the timestamp of the most recent record exported.
+                                this._lastExportTime = rows[rows.length - 1].date;
+
+                                // The export is complete.
+                                this._exportInProgres = false;
+                            }
+                            else {
+                                this._log.debug(`No history data`);
+                                this._log.debug(rows);
+
+                                // The export is complete.
+                                this._exportInProgres = false;
+                            }
+                        }
+                        else {
+                            this._log.debug(`Error accessing history`);
+                            this._log.debug(err);
+
+                            // The export is complete.
+                            this._exportInProgres = false;
+                        }
+                    });
+                }
+
+                // Ensure the database does not grow too large, unless we will be dumping the database anyway.
+                if (!flushHistory) {
+                    this._trimHistoryTables(this._maximumHistorySize);
+                }
+            });
+
+            // If requested, flush the history from the database.
+            if (flushHistory) {
+                this._initializeHistoryTables(this._db);
+            }
+
+            // Restart the timer for an incremental export.
+            this._timeoutIDExportDB = setTimeout(this._bindExportDatabase, this._historyLoggingPeriod, false);
+        }
+    }
 }
 
 /**
@@ -964,10 +1668,29 @@ function _getPackageInfo() {
  * @returns {void}
  */
 export default (homebridgeAPI) => {
-    _debug(`homebridge API version: v${homebridgeAPI.version}`);
+    // Cache the homebridge API and Server versions
+    _HomebridgeAPIVersion = homebridgeAPI.version;
+    _HomebridgeServerVersion = homebridgeAPI.serverVersion;
+    _debug(`homebridge API version: v${_HomebridgeAPIVersion}`);
+    _debug(`homebridge Server version: v${_HomebridgeServerVersion}`);
 
     // Get the package information.
     _PackageInfo = _getPackageInfo();
+
+    // Compute and cache the storage path.
+    _pathStorageRoot = _join(homebridgeAPI.user.customStoragePath, _PackageInfo.CONFIG_INFO.platform);
+    // Check access to the storage location.
+    _access(_pathStorageRoot, _fsConstants.F_OK, (err) => {
+        // Create the storage folder if it does not exist.
+        if (!_is.null(err)) {
+            _mkdir(_pathStorageRoot, (err) => {
+                if (!_is.null(err)) {
+                    _debug(`Unable to create plugin storage folder.`);
+                    _debug(err);
+                }
+            });
+        }
+    });
 
     // Accessory must be created from PlatformAccessory Constructor
     _PlatformAccessory  = homebridgeAPI.platformAccessory;
@@ -982,7 +1705,7 @@ export default (homebridgeAPI) => {
     }
 
     // Cache the reference to hap-nodejs
-    _hap                = homebridgeAPI.hap;
+    _hap = homebridgeAPI.hap;
 
     // Register the paltform.
     _debug(`Registering platform: ${_PackageInfo.CONFIG_INFO.platform}`);
