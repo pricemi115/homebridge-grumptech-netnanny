@@ -9,8 +9,8 @@
  * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/events}
  * @requires crypto
  * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/crypto.html}
- * @requires validator
- * @see {@link hhttps://github.com/validatorjs/validator.js#readme}
+ * @requires is-it-check
+ * @see {@link https://github.com/evdama/is-it-check}
  * @requires grumptech-spawn-helper
  * @see {@link https://github.com/pricemi115/grumptech-spawn-helper#readme}
  */
@@ -19,7 +19,7 @@
 import _debugModule from 'debug';
 import EventEmitter from 'events';
 import * as modCrypto from 'crypto';
-import _VALIDATOR from 'validator';
+import _is from 'is-it-check';
 import {default as _SpawnHelper, SPAWN_HELPER_EVENTS as _SPAWN_HELPER_EVENTS} from 'grumptech-spawn-helper';
 
 /**
@@ -455,7 +455,7 @@ export class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.URI:
             {
                 // Ensure that the destination in indeed a URI/URL.
-                if (!_VALIDATOR.isURL(this.TargetDestination) &&
+                if (_is.not.url(this.TargetDestination) &&
                     (this.TargetDestination !== 'localhost')) {
                     throw new RangeError(`Target Destination is not a URI/URL. ${this.TargetDestination}`);
                 }
@@ -466,7 +466,7 @@ export class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.IPV4:
             {
                 // Ensure that the destination in indeed an IPV4.
-                if (!_VALIDATOR.isIP(this.TargetDestination, _VALIDATOR.IPV4)) {
+                if (_is.not.ipv4(this.TargetDestination)) {
                     throw new RangeError(`Target Destination is not an IPV4. ${this.TargetDestination}`);
                 }
 
@@ -476,7 +476,7 @@ export class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.IPV6:
             {
                 // Ensure that the destination in indeed an IPV6.
-                if (!_VALIDATOR.isIP(this.TargetDestination, _VALIDATOR.IPV6)) {
+                if (_is.not.ipv6(this.TargetDestination)) {
                     throw new RangeError(`Target Destination is not an IPV6. ${this.TargetDestination}`);
                 }
 
