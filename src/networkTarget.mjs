@@ -512,7 +512,7 @@ export class NetworkTarget extends EventEmitter {
 
     /**
      * @description Read Property accessor for the identification
-     * @returns {number} - Identiy string
+     * @returns {string} - Identiy string
      * @private
      */
     get ID() {
