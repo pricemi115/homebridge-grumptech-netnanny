@@ -4,6 +4,11 @@ Change history for _homebridge-grumptech-netnanny_
 ---
 ---
 
+## [1.5.2] 2023-MAR-20 - Quick Fix
+### Fixes
+- [Issue #46](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/46): Fix issue when validating URI/URL targets.
+
+---
 ## [1.5.1] 2022-OCT-01 - Happy Halloween 🎃👻
 
 ### What's new

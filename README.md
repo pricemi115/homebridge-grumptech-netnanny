@@ -1,7 +1,7 @@
 # Homebridge Net Nanny
 
 [Homebridge Net Nanny](https://github.com/pricemi115/homebridge-grumptech-netnanny), by [GrumpTech](https://github.com/pricemi115/), is a [Homebridge](https://homebridge.io) dynamic platform plug-in that publishes metrics measuring the health of a network.
-This plugin was inspired by [Dave Hamilton's](https://twitter.com/DaveHamilton), of [the Mac Observer](https://www.macobserver.com), 3-Ping strategy for evaluating network health.
+This plugin was inspired by [Dave Hamilton's](https://twitter.com/DaveHamilton), of the [Mac Geek Gab](https://www.macgeekgab.com), 3-Ping strategy for evaluating network health.
 
 ## Change Log
 The change history can be viewed [here](./CHANGELOG.md)
@@ -115,7 +115,7 @@ Refer to the bugs and enhancements listed [here](https://github.com/pricemi115/h
 
 ## Credits
 Many thanks to all the folks contributing to [Homebridge](https://homebridge.io) and to [oznu](https://github.com/oznu) for [homebridge-config-ui-x](https://www.npmjs.com/package/homebridge-config-ui-x), allowing for the possibility of this sort of fun and learning.<br/>
-Special thanks to [Dave Hamilton's](https://twitter.com/DaveHamilton), [John F. Braun](https://twitter.com/johnfbraun), and the [MacGeekGab](https://twitter.com/MacObserver) podcast for inspiring the idea for this plugin.
+Special thanks to [Dave Hamilton's](https://twitter.com/DaveHamilton), [John F. Braun](https://twitter.com/johnfbraun), and the [MacGeekGab](https://www.macgeekgab.com) podcast for inspiring the idea for this plugin.
 
 ## License
 Refer to [LICENSE.md](./LICENSE.md) for information regarding licensincg of this source code.
