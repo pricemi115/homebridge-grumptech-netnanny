@@ -1,1 +1,0 @@
-/*! For license information please see grumptech-spawn-helper.js.LICENSE.txt */
