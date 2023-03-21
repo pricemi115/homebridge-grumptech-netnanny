@@ -463,7 +463,7 @@ export class NetworkTarget extends EventEmitter {
                     target = prefixHTTPS + target;
                 }
 
-                // is-it-check requires URLs to start with 'http://' or 'https://' 
+                // is-it-check requires URLs to start with 'http://' or 'https://'
                 // Ensure that the destination in indeed a URI/URL.
                 if (_is.not.url(target) &&
                     (this.TargetDestination.toLowerCase() !== 'localhost')) {
