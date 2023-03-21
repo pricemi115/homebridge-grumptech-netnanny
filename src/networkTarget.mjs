@@ -454,9 +454,19 @@ export class NetworkTarget extends EventEmitter {
 
             case TARGET_TYPES.URI:
             {
+                const prefixHTTPS = `https://`;
+                const prefixHTTP  = `http://`;
+                let target = this.TargetDestination.toLowerCase();
+                if (_is.not.startWith(target, prefixHTTP) &&
+                    _is.not.startWith(target, prefixHTTPS)) {
+                    // Append the HTTPS prefix
+                    target = prefixHTTPS + target;
+                }
+
+                // is-it-check requires URLs to start with 'http://' or 'https://' 
                 // Ensure that the destination in indeed a URI/URL.
-                if (_is.not.url(this.TargetDestination) &&
-                    (this.TargetDestination !== 'localhost')) {
+                if (_is.not.url(target) &&
+                    (this.TargetDestination.toLowerCase() !== 'localhost')) {
                     throw new RangeError(`Target Destination is not a URI/URL. ${this.TargetDestination}`);
                 }
 
