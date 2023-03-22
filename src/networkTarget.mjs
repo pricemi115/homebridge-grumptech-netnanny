@@ -895,6 +895,9 @@ export class NetworkTarget extends EventEmitter {
         _debug(`'${response.source.Command} ${response.source.Arguments}' Spawn Helper Result: valid:${response.valid}`);
         _debug(response.result);
 
+        // Regardless of the result, the target destination is no longer pending.
+        this._destination_pending = false;
+
         if (TARGET_TYPES.GATEWAY === this._target_type) {
             if (response.valid &&
                 (response.result !== undefined)) {
@@ -916,15 +919,12 @@ export class NetworkTarget extends EventEmitter {
                 }
             }
             else {
-                throw new Error(`Spawn response is invalid`);
+                _debug(`Gateway not identified: valid=${response.valid} result=${response.result}`);
             }
         }
         else {
-            throw new Error(`_on_find_gateway_address() called inappropriately`);
+            _debug(`Targer is not a gateway: type=${this._target_type}`);
         }
-
-        // Regardless of the result, the target destination is no longer pending.
-        this._destination_pending = false;
     }
 
     /**
