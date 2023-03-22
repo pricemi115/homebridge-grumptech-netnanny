@@ -1080,7 +1080,7 @@ class NetworkPerformanceMonitorPlatform {
 
     /**
      * @description Event handler for the "get" event for the Switch.On characteristic.
-     * @param {string} id - accessory and id of the switch service being querried.
+     * @param {string} id - id of the accessory switch service being querried.
      * @param {Function} callback - Function callback for homebridge.
      * @returns {void}
      * @throws {TypeError} - thrown when 'id' is not a non-zero string.
@@ -1122,8 +1122,8 @@ class NetworkPerformanceMonitorPlatform {
 
     /**
      * @description Event handler for the "set" event for the Switch.On characteristic.
-     * @param {string} id - accessory and id of the switch service being querried.
-     * @param {boolean} value - new/rewuested state of the switch
+     * @param {string} id - id of the accessory switch service being set.
+     * @param {boolean} value - new/requested state of the switch
      * @param {Function} callback - Function callback for homebridge.
      * @returns {void}
      * @throws {TypeError} - thrown when 'id' is not a non-zero string.
