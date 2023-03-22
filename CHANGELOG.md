@@ -4,6 +4,11 @@ Change history for _homebridge-grumptech-netnanny_
 ---
 ---
 
+## [1.5.3] 2023-MAR-21 - Another quick fix
+### Fixes
+- [Issue #48](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/48): Fix issue resulting in an infinite deferral of Gateway/Router targets. Gateway/Router targets now fail more gracefully when the gateway cannot be identified.
+
+---
 ## [1.5.2] 2023-MAR-20 - Quick Fix
 ### Fixes
 - [Issue #46](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/46): Fix issue when validating URI/URL targets.
