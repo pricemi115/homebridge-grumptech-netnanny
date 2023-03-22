@@ -104,7 +104,7 @@ When _Enable History Logging_ is active, the filtered ping results will be store
 This module operates by using shell commands to the `ping` and `route` programs. At this time, the plugin assumes macOS output when parsing the results. While the `ping` output is consistent across operating systems, the `route` output is operating system specific. As a result, the `gateway/router` type selection is limited to macOS.
 
 ## Known Issues and Planned Enhancements
-Refer to the bugs and enhancements listed [here](https://github.com/pricemi115/homebridge-grumptech-volmon/issues)
+Refer to the bugs and enhancements listed [here](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues)
 
 ## Contributing
 1. Fork it!
