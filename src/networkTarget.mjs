@@ -923,7 +923,7 @@ export class NetworkTarget extends EventEmitter {
             }
         }
         else {
-            _debug(`Targer is not a gateway: type=${this._target_type}`);
+            _debug(`Target is not a gateway: type=${this._target_type}`);
         }
     }
 

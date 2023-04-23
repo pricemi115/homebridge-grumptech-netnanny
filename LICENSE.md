@@ -1,6 +1,6 @@
 ISC License
 
-Copyright 2021 - _Michael J. Price_ (GrumpTech) - homebridge-grumptech-netnanny
+Copyright 2023 - _Michael J. Price_ (GrumpTech) - homebridge-grumptech-netnanny
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
