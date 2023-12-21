@@ -1,0 +1,31 @@
+---
+title: Net Nanny
+---
+erDiagram
+    INFO {
+        string plugin_version
+        string homebridge_api_version
+        string homebridge_server_version
+        string hap_library_version
+        integer accessory_version
+    }
+    TARGETS {
+        string id PK "Default 0"
+        string name
+        integet type "Default 0"
+    }
+    DATA {
+        integer id PK "Default 0, AutoIncrement"
+        integer latency_val "Default 0"
+        integer jitter_val "Default 0"
+        integer loss_val "Default 0"
+        integer fault_code "Default 0"
+    }
+    HISTORY {
+        integer id PK "Default 0, AutoIncrement"
+        Date date "Default now"
+        string target_id FK "Key to the target table entry"
+        integer data_id FK "Key to the data table"       
+    }
+    HISTORY ||--|{ TARGETS : has
+    HISTORY ||--|{ DATA : has
