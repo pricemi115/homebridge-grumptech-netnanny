@@ -12,8 +12,6 @@
  * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/url.html}
  * @requires path
  * @see {@link https://nodejs.org/dist/latest-v16.x/docs/api/path.html}
- * @requires sqlite3
- * @see {@link https://github.com/TryGhost/node-sqlite3#readme}
  * @requires is-it-check
  * @see {@link https://github.com/evdama/is-it-check}
  */
@@ -65,41 +63,21 @@ import {NetworkTarget as _NetworkTarget,
         ALERT_BITMASK as _TARGET_ALERT_BITMASK,
         NETWORK_TARGET_EVENTS as _NETWORK_TARGET_EVENTS} from './networkTarget.mjs';
 /* eslint-enable indent */
+import {DataTable} from './tableData.mjs';
+import {InfoTable} from './tableInfo.mjs';
 
 // External dependencies and imports.
 import _debugModule from 'debug';
-import {readFileSync as _readFileSync, writeFile as _writeFile, access as _access, mkdir as _mkdir, constants as _fsConstants} from 'node:fs';
-import {fileURLToPath as _fileURLToPath} from 'node:url';
+import {writeFile as _writeFile, access as _access, mkdir as _mkdir, constants as _fsConstants} from 'node:fs';
 import {EOL as _EOL} from 'node:os';
-import {join as _join, dirname as _dirname} from 'node:path';
-import _sqlite3Module from 'sqlite3';
+import {join as _join} from 'node:path';
 import _is from 'is-it-check';
-
-/**
- * @description Absolute path to this script file.
- * @private
- * @readonly
- */
-const __filename = _fileURLToPath(import.meta.url);
-/**
- * @description Absolute path to the folder of this script file.
- * @private
- * @readonly
- */
-const __dirname = _dirname(__filename);
 
 /**
  * @private
  * @description Debugging function pointer for runtime related diagnostics.
  */
 const _debug = _debugModule('homebridge');
-
-/**
- * @description Reference to the SQLite API. Used for debugging.
- * @private
- * @readonly
- */
-const _sqlite3 = _sqlite3Module.verbose();
 
 // Internal Constants
 // History:
@@ -113,6 +91,11 @@ const _sqlite3 = _sqlite3Module.verbose();
  * @readonly
  */
 const ACCESSORY_VERSION = 2;
+
+/**
+ * @description Package Information
+ */
+const _PackageInfo = {CONFIG_INFO: PLACEHOLDER_CONFIG_INFO, PLUGIN_VER: 'PLACEHOLDER_VERSION'};
 
 /**
  * @description Enumeration of accessory types.
@@ -214,12 +197,6 @@ const INVALID_LAST_EXPORT_TIME = -1;
  * @readonly
  */
 const INVALID_TIMEOUT_ID = -1;
-
-/**
- * @description Package Information
- * @private
- */
-let _PackageInfo;
 
 /**
  * @description Homebridge API Version
@@ -395,9 +372,18 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Create an in-memory SQLite database for tracking performance history.
-        this._db = undefined;
+        this._infoTable = undefined;
+        this._historyData = undefined;
         if (this._enableHistoryLogging) {
-            this._db = this._initializeHistoryDatabase();
+            /* eslint-disable indent */
+            /* eslint-disable new-cap */
+            this._infoTable = new InfoTable({plugin_version: _PackageInfo.PLUGIN_VER,
+                                             homebridge_api_version: _HomebridgeAPIVersion, homebridge_server_version: _HomebridgeServerVersion,
+                                             hap_library_version: _hap.HAPLibraryVersion(),
+                                             accessory_version: ACCESSORY_VERSION});
+            /* eslint-enable new-cap */
+            /* eslint-enable indent */
+            this._historyData = new Map();
         }
 
         // Timer for exporting the database.
@@ -429,7 +415,6 @@ class NetworkPerformanceMonitorPlatform {
         if ((options.exit) || (options.cleanup)) {
             // Cleanup the network performance objects.
             clearTimeout(this._timeoutIDExportDB);
-            this._db = null;
         }
 
         // Lastly eliminate myself.
@@ -505,13 +490,12 @@ class NetworkPerformanceMonitorPlatform {
                 // Get the accessory to see if it is active or not.
                 const accessory = this._accessories.get(target.ID);
 
-                // Add this network target to the targets table, if logging is enabled.
-                /* eslint-disable indent */
-                if (!_is.null(this._db)) {
-                    this._db.run(`INSERT INTO targets(id, name, type) VALUES(?,?,?)`,
-                                [target.ID, accessory.displayName, target.TargetType]);
+                // Add this network target to the g history map, if logging is enabled.
+                if (_is.not.undefined(this._historyData)) {
+                    if (!this._historyData.has(target.ID)) {
+                        this._historyData.set(target.ID, []);
+                    }
                 }
-                /* eslint-enable indent */
 
                 // Is the accessory active?
                 if (this._getAccessorySwitchState(accessory)) {
@@ -564,7 +548,7 @@ class NetworkPerformanceMonitorPlatform {
         // Validate that an accessory exists for this id.
         if (this._accessories.has(id)) {
             const accessory = this._accessories.get(id);
-            if (accessory !== undefined) {
+            if (_is.not.undefined(accessory)) {
                 // Get the buffer filled flags.
                 /* eslint-disable new-cap */
                 const latencyBufferFilled   = results.sender.IsBufferFilled(SERVICE_INFO.LATENCY.data_buffer);
@@ -592,7 +576,7 @@ class NetworkPerformanceMonitorPlatform {
                 this._updateCarbonDioxideSensorService(accessory,  SERVICE_INFO.LOSS,    {level: results.packet_loss,     fault: lossFault,    resetPeak: resetPeakLoss,    active: true});
 
                 // Log the data
-                if (!_is.null(this._db)) {
+                if (_is.not.undefined(this._historyData)) {
                     // Get the timestap for this record.
                     const timestamp = Date.now();
 
@@ -603,44 +587,22 @@ class NetworkPerformanceMonitorPlatform {
 
                     // Handle a possible rollover of the date.
                     if (timestamp < this._lastExportTime) {
-                        this._lastExportTime = timestamp;
+                        this._lastExportTime = timestamp[Symbol.toPrimitive]('number');
                     }
 
-                    this._db.serialize(()=> {
-                        // Log the history entry.
-                        const stmtHistory = this._db.prepare(`
-                            INSERT INTO history(date, target_id, data_id)
-                            VALUES('${timestamp}', '${id}', $dataKey);
-                        `, (err) => {
-                            if (_is.null(err)) {
-                                // Log the readings
-                                this._db.run(`
-                                    INSERT INTO data(latency_val, jitter_val, loss_val, fault_code)
-                                    VALUES('${results.ping_latency_ms}', '${results.ping_jitter}', '${results.packet_loss}', '${faultCode}');
-                                `, [], function(err) {
-                                    if (_is.null(err)) {
-                                        // Execute the history statement.
-                                        // 'this' is valid here. Refers to the SQL Statement object.
-                                        // eslint-disable-next-line no-invalid-this
-                                        stmtHistory.run({$dataKey: this.lastID}, (err) => {
-                                            if (!_is.null(err)) {
-                                                _debug(`Error executing history statement.`);
-                                                _debug(err);
-                                            }
-                                        });
-                                    }
-                                    else {
-                                        _debug(`Error with SQL Run`);
-                                        _debug(err);
-                                    }
-                                });
-                            }
-                            else {
-                                this._log.debug(`Error preparing the history table.`);
-                                this._log.debug(err);
-                            }
-                        });
-                    });
+                    if (this._historyData.has(id)) {
+                        // Record the data.
+                        const entry = new DataTable({error: faultCode, latency: results.ping_latency_ms, jitter: results.ping_jitter, packet_loss: results.packet_loss});
+ 
+                        // Save the data
+                        const data = this._historyData.get(id);
+                        if (_is.array(data)) {
+                            data.push(entry);
+                        }
+                    }
+                    else {
+                        this._log.debug(`Target ${id} is not registered.`);
+                    }
                 }
             }
         }
@@ -954,7 +916,7 @@ class NetworkPerformanceMonitorPlatform {
 
                 // Determine the fault code and CO2 Level
                 /* eslint-disable max-len */
-                const faultCode = (values.fault                                                   ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
+                const faultCode = (values.fault ? _hap.Characteristic.StatusFault.GENERAL_FAULT                 : _hap.Characteristic.StatusFault.NO_FAULT);
                 // eslint-disable-next-line new-cap
                 const co2Level  = ((target.IsAlertActive(serviceInfo.alert_mask) && values.fault) ? _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_ABNORMAL : _hap.Characteristic.CarbonDioxideDetected.CO2_LEVELS_NORMAL);
                 /* eslint-enable max-len */
@@ -1316,122 +1278,6 @@ class NetworkPerformanceMonitorPlatform {
     }
 
     /**
-     * @description Helper to initialize the in-memory SQL database for recording historical network performance data.
-     * @returns {void}
-     * @private
-     */
-    _initializeHistoryDatabase() {
-        let theDB = undefined;
-
-        if (this._enableHistoryLogging) {
-            theDB = new _sqlite3.Database(':memory:');
-            // Initialize the database
-            theDB.serialize(()=> {
-                // Activate foreigh key support
-                theDB.exec(`
-                    PRAGMA foreign_keys = ON;
-                `, (err) => {
-                    if (!_is.null(err)) {
-                        this._log.debug(`Error enabling foreigh keys.`);
-                        this._log.debug(err);
-                    }
-                });
-                // Create a table for general appliction info.
-                theDB.exec(`
-                    CREATE TABLE info (
-                                        plugin_version            TEXT    NOT NULL,
-                                        homebridge_api_version    TEXT    NOT NULL,
-                                        homebridge_server_version TEXT    NOT NULL,
-                                        hap_library_version       TEXT    NOT NULL,
-                                        accessory_version         INTEGER NOT NULL DEFAULT 0
-                    );
-                    CREATE TABLE targets(
-                                        id   TEXT    NOT NULL PRIMARY KEY DEFAULT 0,
-                                        name TEXT    NOT NULL,
-                                        type INTEGER NOT NULL DEFAULT 0
-                    );
-                `, (err) => {
-                    if (!_is.null(err)) {
-                        this._log.debug(`Error creating info table.`);
-                        this._log.debug(err);
-                    }
-                });
-                // Populate the info table
-                /* eslint-disable new-cap */
-                theDB.exec(`
-                    INSERT INTO info(plugin_version, homebridge_api_version, homebridge_server_version, hap_library_version, accessory_version)
-                    VALUES('${_PackageInfo.PLUGIN_VER}', '${_HomebridgeAPIVersion}', '${_HomebridgeServerVersion}', '${_hap.HAPLibraryVersion()}', ${ACCESSORY_VERSION});
-                `, (err) => {
-                    if (!_is.null(err)) {
-                        this._log.debug(`Error populating the info table.`);
-                        this._log.debug(err);
-                    }
-                });
-                /* eslint-enable new-cap */
-            });
-            // Create the history tables.
-            this._initializeHistoryTables(theDB);
-        }
-
-        return theDB;
-    }
-
-    /**
-     * @description Helper to create/re-create the tables used to record the historical network performance data.
-     * @param {_sqlite3.Database} theDB - reference to the database.
-     * @returns  {void}
-     * @private
-     */
-    _initializeHistoryTables(theDB) {
-        if (_is.not.undefined(theDB) &&
-            (theDB instanceof _sqlite3.Database)) {
-            theDB.serialize(() => {
-                // Delete the tables if they exist.
-                theDB.exec(`
-                    DROP TABLE IF EXISTS history;
-                    DROP TABLE IF EXISTS data;
-                `, (err) => {
-                    if (!_is.null(err)) {
-                        this._log.debug(`Unable to clear history tables.`);
-                        this._log.debug(err);
-                    }
-                });
-
-                // Create the table structure.
-                theDB.exec(`
-                    CREATE TABLE data(
-                        id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
-                        latency_val INTEGER NOT NULL DEFAULT 0,
-                        jitter_val  INTEGER NOT NULL DEFAULT 0,
-                        loss_val    INTEGER NOT NULL DEFAULT 0,
-                        fault_code  INTEGER NOT NULL DEFAULT 0
-                    );
-                    CREATE TABLE history(
-                        id          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL DEFAULT 0,
-                        date        INTEGER                           NOT NULL DEFAULT 0,
-                        target_id   TEXT                              NOT NULL,
-                        data_id     INTEGER                           NOT NULL DEFAULT 0,
-                        FOREIGN KEY (target_id) REFERENCES targets(id) ON DELETE CASCADE ON UPDATE NO ACTION,
-                        FOREIGN KEY (data_id)   REFERENCES data(id)    ON DELETE CASCADE ON UPDATE NO ACTION
-                    );
-                `, (err) => {
-                    if (_is.null(err)) {
-                        // Reset the cached export reference
-                        this._lastExportTime = INVALID_LAST_EXPORT_TIME;
-                    }
-                    else {
-                        this._log.debug(`Error creating history tables.`);
-                        this._log.debug(err);
-                    }
-                });
-            });
-        }
-        else {
-            this._log.debug(`Invalid database.`);
-        }
-    }
-
-    /**
      * @description Helper to maintaiin a reasonable amount of data in the history tables.
      * @param {number} recordLimit - Maximum number of rows for the data tables.
      * @returns {void}
@@ -1439,38 +1285,20 @@ class NetworkPerformanceMonitorPlatform {
      */
     _trimHistoryTables(recordLimit) {
         if (_is.integer(recordLimit) && _is.gt(recordLimit, 0) &&
-            !_is.null(this._db)) {
-            // Get the number of rows in the 'data' table.
-            this._db.get(`SELECT count(*) AS total FROM data;`, (err, result) => {
-                if (_is.null(err) && _is.integer(result.total)) {
-                    // Determine if we have exceeded the size limitation
-                    if (result.total > recordLimit) {
-                        // Compute the number of rows to be trimmed and add a 2% buffer.
-                        const trimSize =  Math.ceil((result.total - recordLimit) * 1.02);
+            _is.not.undefined(this._historyData)) {
+            // Iterate through all the items in the map.
+            this._historyData.foreach((data, key, map) => {
+                // Get the number of rows in the 'data' table.
+                const rows = data.length;
+                if (rows > recordLimit) {
+                    // Compute the number of rows to be trimmed and add a 2% buffer.
+                    const trimSize =  Math.ceil((rows - recordLimit) * 1.02);
 
-                        this._db.serialize(() => {
-                            // Trim the oldest rows
-                            this._db.exec(`
-                                DELETE FROM data
-                                WHERE id IN (SELECT id from data LIMIT ${trimSize});
-                            `, (err) => {
-                                if (!_is.null(err)) {
-                                    this._log.debug(`Error trimming data`);
-                                    this._log.debug(err);
-                                }
-                            });
-                            // Sanity: Make sure that the history table was updated as well
-                            this._db.get(`SELECT count(*) AS totalHistory FROM history;`, (err, result) => {
-                                if (result.totalHistory !== recordLimit) {
-                                    throw Error(`History table is out of sync. Rows=${result.totalHistory} Expected=${recordLimit}`);
-                                }
-                            });
-                        });
-                    }
-                }
-                else {
-                    this._log.debug(`Error gettng number of data records.`);
-                    this._log.debug(err);
+                    // Trim the data.
+                    const trimmedData = data.toSpliced(0, trimSize);
+
+                    // Replace the data
+                    map.push(key, trimmedData);
                 }
             });
         }
@@ -1488,11 +1316,10 @@ class NetworkPerformanceMonitorPlatform {
             throw new TypeError(`'flushHistory' must be a boolean.`);
         }
 
-        if (_is.not.null(this._db)) {
+        if (_is.not.undefined(this._historyData)) {
             // Get the current timestamp
             const timestamp = new Date(Date.now());
 
-            let errorEncountered = false;
             this._exportInProgres = true;
 
             // Build the path for the log file.
@@ -1500,120 +1327,85 @@ class NetworkPerformanceMonitorPlatform {
 
             this._log.debug(`Exporting database: ${fileName}`);
             let historyContent = '';
-            this._db.serialize(() => {
-                // Get the header information.
-                this._db.get(`SELECT * FROM info`, (err, result) => {
-                    if (_is.null(err)) {
-                        // Append 'info' header
-                        historyContent += `timestamp:,${timestamp.toDateString()} @ ${timestamp.toTimeString()}${_EOL}`;
-                        historyContent += `plugin version:,${result.plugin_version}${_EOL}`;
-                        historyContent += `homebridge api version:,${result.homebridge_api_version}${_EOL}`;
-                        historyContent += `homebridge server version:,${result.homebridge_server_version}${_EOL}`;
-                        historyContent += `hap library version:,${result.hap_library_version}${_EOL}`;
-                        historyContent += `node.js version:,${process.versions.node}${_EOL}`;
-                        historyContent += `accessory version:,${result.accessory_version}${_EOL}`;
-                        historyContent += _EOL;
+
+            // Append 'info' header
+            historyContent += `timestamp:,${timestamp.toDateString()} @ ${timestamp.toTimeString()}${_EOL}`;
+            historyContent += `plugin version:,${this._infoTable.PlugInVersion}${_EOL}`;
+            historyContent += `homebridge api version:,${this._infoTable.HomebridgeAPIVersion}${_EOL}`;
+            historyContent += `homebridge server version:,${this._infoTable.HomebridgeServerVersion}${_EOL}`;
+            historyContent += `hap library version:,${this._infoTable.HAPLibraryVersion}${_EOL}`;
+            historyContent += `node.js version:,${process.versions.node}${_EOL}`;
+            historyContent += `accessory version:,${this._infoTable.AccessoryVersion}${_EOL}`;
+            historyContent += _EOL;
+
+            // Build a flat array of all the entries.
+            const history = [];
+            this._historyData.forEach((data, key) => {
+                if (this._networkPerformanceTargets.has(key)) {
+                    if (_is.not.undefined(data)) {
+                        data.forEach((entry) => {
+                            if (entry.Date > this._lastExportTime) {
+                                const target = this._networkPerformanceTargets.get(key);
+                                /* eslint-disable indent */
+                                history.push({date: entry.Date,
+                                            // eslint-disable-next-line indent
+                                            name: target.TargetDestination, type: target.TargetType,
+                                            latency: entry.Latency, jitter: entry.Jitter, loss: entry.PacketLoss, fault: entry.Error});
+                                /* eslint-enable indent */
+                            }
+                        });
                     }
                     else {
-                        this._log.debug(`Error getting info table.`);
+                        this._log.debug(`Export - No Data: ${key}`);
+                    }
+                }
+                else {
+                    this._log.debug(`Export - Unknown target: ${key}`);
+                }
+            });
+            // Sort based on time.
+            history.sort((a, b) => {
+                return (a.date - b.date);
+            });
+
+            if (history.length > 0) {
+                // Append the 'history' header
+                historyContent += `date,raw time (ms),name,type,latency (ms),jitter (ms),loss,fault code (bitmask)${_EOL}`;
+
+                // Export the data.
+                history.forEach((entry) => {
+                    // Append the data
+                    // eslint-disable-next-line max-len
+                    const date = new Date(entry.date);
+                    historyContent += `${date.toDateString()} @ ${date.toTimeString()},${entry.date},${entry.name},${entry.type},${entry.latency},${entry.jitter},${entry.loss},${entry.fault}${_EOL}`;
+                });
+
+                // Write the file.
+                _writeFile(fileName, historyContent, (err) => {
+                    if (!_is.null(err)) {
+                        this._log.debug(`Error exporting history:`);
                         this._log.debug(err);
-                        errorEncountered = true;
-                        this._exportInProgres = false;
                     }
                 });
 
-                // Collect the history data.
-                if (!errorEncountered) {
-                    this._db.all(`
-                                SElECT
-                                    date, t.name AS target_name, t.type AS target_type, d.latency_val AS latency, d.jitter_val AS jitter, d.loss_val AS loss, d.fault_code as fault
-                                    FROM history h
-                                INNER JOIN targets t
-                                    ON t.id = target_id
-                                INNER JOIN data d
-                                    ON d.id = data_id
-                                WHERE
-                                    date > ${this._lastExportTime}
-                                ORDER BY
-                                    date;
-                        `, (err, rows) => {
-                        if (_is.null(err)) {
-                            // Ensure there is data to be logged.
-                            if (rows.length > 0) {
-                                // Append the 'history' header
-                                historyContent += `date,raw time (ms),name,type,latency (ms),jitter (ms),loss,fault code (bitmask)${_EOL}`;
+                // Update the timestamp of the most recent record exported.
+                this._lastExportTime = history[history.length - 1].date;
 
-                                // Append the history data.
-                                rows.forEach((row) => {
-                                    // Get the date of the record
-                                    const theDate = new Date(row.date);
-                                    // Append the data
-                                    // eslint-disable-next-line max-len
-                                    historyContent += `${theDate.toDateString()} @ ${theDate.toTimeString()},${row.date},${row.target_name},${row.target_type},${row.latency},${row.jitter},${row.loss},${row.fault}${_EOL}`;
-                                });
-
-                                // Write the file.
-                                _writeFile(fileName, historyContent, (err) => {
-                                    if (!_is.null(err)) {
-                                        this._log.debug(`Error exporting history:`);
-                                        this._log.debug(err);
-                                    }
-                                });
-
-                                // Update the timestamp of the most recent record exported.
-                                this._lastExportTime = rows[rows.length - 1].date;
-
-                                // The export is complete.
-                                this._exportInProgres = false;
-                            }
-                            else {
-                                this._log.debug(`No history data`);
-                                this._log.debug(rows);
-
-                                // The export is complete.
-                                this._exportInProgres = false;
-                            }
-                        }
-                        else {
-                            this._log.debug(`Error accessing history`);
-                            this._log.debug(err);
-
-                            // The export is complete.
-                            this._exportInProgres = false;
-                        }
+                // If requested, flush the history from the database.
+                if (flushHistory) {
+                    this._historyData.forEach((data) => {
+                        // Reset
+                        data.splice(0, data.length);
                     });
                 }
-
-                // Ensure the database does not grow too large, unless we will be dumping the database anyway.
-                if (!flushHistory) {
-                    this._trimHistoryTables(this._maximumHistorySize);
-                }
-            });
-
-            // If requested, flush the history from the database.
-            if (flushHistory) {
-                this._initializeHistoryTables(this._db);
             }
+            // The export is complete.
+            this._exportInProgres = false;
 
             // Restart the timer for an incremental export.
             this._timeoutIDExportDB = setTimeout(this._bindExportDatabase, this._historyLoggingPeriod, false);
         }
     }
-}
-
-/**
- * @description Helper to get the information of interest from the package.json file.
- * @returns {object} Data of interest.
- * @private
- */
-function _getPackageInfo() {
-    const packageFilename = _join(__dirname, '../package.json');
-    const rawContents = _readFileSync(packageFilename);
-    const parsedData = JSON.parse(rawContents);
-
-    const pkgInfo = {CONFIG_INFO: parsedData.config_info, PLUGIN_VER: parsedData.version};
-
-    return pkgInfo;
 }
 
 /**
@@ -1627,9 +1419,6 @@ export default (homebridgeAPI) => {
     _HomebridgeServerVersion = homebridgeAPI.serverVersion;
     _debug(`homebridge API version: v${_HomebridgeAPIVersion}`);
     _debug(`homebridge Server version: v${_HomebridgeServerVersion}`);
-
-    // Get the package information.
-    _PackageInfo = _getPackageInfo();
 
     // Compute and cache the storage path.
     _pathStorageRoot = _join(homebridgeAPI.user.customStoragePath, _PackageInfo.CONFIG_INFO.platform);

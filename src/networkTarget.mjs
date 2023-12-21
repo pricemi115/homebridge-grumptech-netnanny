@@ -212,6 +212,22 @@ export const NETWORK_TARGET_EVENTS = {
 };
 
 /**
+ * @description Enumeration of supported operating systems for finding the gateway.
+ * @readonly
+ * @private
+ * @enum {string}
+ * @property {string} OS_DARWIN - macOS
+ * @property {string} OS_LINUX - Linux
+ */
+const SUPPORTED_GATEWAY_OPERATING_SYSTEMS = {
+    /* eslint-disable key-spacing */
+    OS_DARWIN: 'darwin',
+    OS_LINUX:  'linux',
+    OS_WINDOWS:'windows',
+    /* eslint-enable key-spacing */
+};
+
+/**
  * @description Network Target ready notification
  * @event module:NetworkTargetModule#event:ready
  * @type {object}
@@ -445,7 +461,7 @@ export class NetworkTarget extends EventEmitter {
                 const ping = new _SpawnHelper();
                 ping.on(_SPAWN_HELPER_EVENTS.EVENT_COMPLETE, this._CB__findGatewayAddr);
                 // eslint-disable-next-line new-cap
-                ping.Spawn({command: 'route', arguments: [`get`, `default`]});
+                ping.Spawn({command: 'route', arguments: this._routeArguments});
 
                 this._destination_pending = true;
 
@@ -901,20 +917,26 @@ export class NetworkTarget extends EventEmitter {
         if (TARGET_TYPES.GATEWAY === this._target_type) {
             if (response.valid &&
                 (response.result !== undefined)) {
-                const GATEWAY_HEADER = 'gateway: ';
-
                 const lines = response.result.toString().split('\n');
-                for (const line of lines) {
-                    if (line.includes(GATEWAY_HEADER)) {
-                        const startIndex = line.indexOf(GATEWAY_HEADER);
 
-                        if ((startIndex >= 0) &&
-                            (line.length > (startIndex + GATEWAY_HEADER.length))) {
-                            // set the destination to the gateway.
-                            this._target_dest = line.substr(startIndex + GATEWAY_HEADER.length);
+                const operatingSystem = process.platform;
+                switch (operatingSystem.toLowerCase()) {
+                    case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_DARWIN: {
+                        this._target_dest = this._extractGatewayOnDarwin(lines);
+                        _debug(`Gateway identified: ${this.TargetDestination}`);
+                        break;
+                    }
 
-                            _debug(`Gateway identified: ${this.TargetDestination}`);
-                        }
+                    case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_LINUX: {
+                        this._target_dest = this._extractGatewayOnLinux(lines);
+                        _debug(`Gateway identified: ${this.TargetDestination}`);
+                        break;
+                    }
+
+                    default: {
+                        _debug(`Operating system '${operatingSystem} not supported.`);
+                        // eslint-disable-next-line no-unreachable
+                        break;
                     }
                 }
             }
@@ -925,6 +947,85 @@ export class NetworkTarget extends EventEmitter {
         else {
             _debug(`Target is not a gateway: type=${this._target_type}`);
         }
+    }
+
+    /**
+     * @description Helper to extract the gateway address from the route response on Darwin operating systems.
+     * @param {string[]} routeResponse - Array of strings comprising the response to the route command request
+     * @returns {string | undefined} - Network target address.
+     * @private
+     */
+    _extractGatewayOnDarwin(routeResponse) {
+        const GATEWAY_HEADER = 'gateway: ';
+
+        let targetAddr = undefined;
+
+        if (_is.array(routeResponse)) {
+            for (const line of routeResponse) {
+                if (line.includes(GATEWAY_HEADER)) {
+                    const startIndex = line.indexOf(GATEWAY_HEADER);
+
+                    if ((startIndex >= 0) &&
+                        (line.length > (startIndex + GATEWAY_HEADER.length))) {
+                        // set the destination to the gateway.
+                        targetAddr = line.substring(startIndex + GATEWAY_HEADER.length);
+                        break;
+                    }
+                }
+            }
+        }
+
+        return targetAddr;
+    }
+
+    /**
+     * @description Helper to extract the gateway address from the route response on Darwin operating systems.
+     * @param {string[]} routeResponse - Array of strings comprising the response to the route command request
+     * @returns {string | undefined} - Network target address.
+     * @private
+     */
+    _extractGatewayOnLinux(routeResponse) {
+        const DESTINATION_HEADER = 'Destination';
+        const GATEWAY_HEADER = 'Gateway';
+        const DEFAULT_IPV4_GATEWAY = '0.0.0.0';
+        const rowHeaderIndex = 1;
+
+        let targetAddr = undefined;
+
+        if (_is.array(routeResponse)) {
+            if (routeResponse.length > (rowHeaderIndex+1)) {
+                const regNpWhSp = /\s+/;
+                // Break up the header row into fields.
+                const headerFields = routeResponse[rowHeaderIndex].split(regNpWhSp);
+                if (_is.array(headerFields) && (headerFields.length > 2)) {
+                    // Determine the columns for the Destination and Gateway fields
+                    const colDestination = headerFields.findIndex((item) => {
+                        return _is.equal(item, DESTINATION_HEADER);
+                    });
+                    const colGateway = headerFields.findIndex((item) => {
+                        return _is.equal(item, GATEWAY_HEADER);
+                    });
+
+                    if ((colDestination >= 0) && (colGateway >= 0)) {
+                        const routes = routeResponse.slice(rowHeaderIndex+1);
+
+                        // Search the routes looking for the default gateway.
+                        for (const route of routes) {
+                            const routeFields = route.split(regNpWhSp);
+                            if (_is.array(routeFields) && (routeFields.length === headerFields.length)) {
+                                if (_is.equal(routeFields[colDestination], DEFAULT_IPV4_GATEWAY)) {
+                                    // set the destination to the gateway.
+                                    targetAddr = routeFields[colGateway];
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        return targetAddr;
     }
 
     /**
@@ -1075,5 +1176,40 @@ export class NetworkTarget extends EventEmitter {
         const jitter = ((data.length > 1) ? (sum / (data.length - 1)) : 0 );
 
         return jitter;
+    }
+
+    /**
+     * @description Read-only accessor for the `operating system` specific arguments to the `route` command
+     * @returns {string[]} - Array of strings containing the `route` arguments.
+     * @private
+     */
+    get _routeArguments() {
+        const operatingSystem = process.platform;
+
+        let args = undefined;
+        switch (operatingSystem.toLowerCase()) {
+            case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_DARWIN: {
+                args = [`get`, `default`];
+                break;
+            }
+
+            case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_LINUX: {
+                args = [`-n`];
+                break;
+            }
+
+            case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_WINDOWS: {
+                args = [`print`, `0.0.0.0`];
+                break;
+            }
+
+            default: {
+                _debug(`Operating system '${operatingSystem} not supported.`);
+                // eslint-disable-next-line no-unreachable
+                break;
+            }
+        }
+
+        return args;
     }
 }
