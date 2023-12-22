@@ -1,7 +1,7 @@
 {
   "name": "homebridge-grumptech-netnanny",
   "displayName": "Homebridge Net Nanny",
-  "version": "1.5.3",
+  "version": "1.6.0",
   "description": "Network performance monitor.",
   "type": "module",
   "main": "dist/homebridge-grumptech-netnanny.js",

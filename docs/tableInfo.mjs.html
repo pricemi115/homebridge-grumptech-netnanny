@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>tableInfo.mjs - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/pricemi115/homebridge-grumptech-netnanny" target="_blank" >GrumpTech</a></h2><h3>Modules</h3><ul><li><a href="module-InfoTable.html">InfoTable</a></li><li><a href="module-NetNannyModule.html">NetNannyModule</a></li><li><a href="module-NetworkTargetModule.html">NetworkTargetModule</a></li><li></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-license.html">license</a></li><li><a href="tutorial-security.html">security</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">tableInfo.mjs</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @description Stores information on the plug-in
+ * @copyright 2023
+ * @author Mike Price &lt;dev.grumptech@gmail.com>
+ * @module InfoTable
+ * @requires is-it-check
+ * @see {@link https://github.com/evdama/is-it-check}
+ */
+
+// External dependencies and imports.
+import _is from 'is-it-check';
+
+/**
+ * @description Class for storing plug-in information
+ */
+export class InfoTable {
+    /**
+     * @description Constructor
+     * @param {object} config - Configuration data
+     * @param {string} config.plugin_version - Plug-in version.
+     * @param {string} config.homebridge_api_version - Homebridge API version.
+     * @param {string} config.homebridge_server_version - Homebridge Server version.
+     * @param {string} config.hap_library_version - HAP Library version.
+     * @param {number} config.accessory_version - Accessory version.
+     * @throws {TypeError} - thrown if the configuration is undefined or any parameters are not of the expected type.
+     * @throws {RangeError} - thrown if the configuration parameters are out of bounds.
+     * @private
+     */
+    constructor(config) {
+        if (_is.undefined(config) || _is.not.object(config) ||
+            _is.undefined(config.plugin_version) || _is.not.string(config.plugin_version) ||
+            _is.undefined(config.homebridge_api_version) || _is.not.number(config.homebridge_api_version) ||
+            _is.undefined(config.homebridge_server_version) || _is.not.string(config.homebridge_server_version) ||
+            _is.undefined(config.hap_library_version) || _is.not.string(config.hap_library_version) ||
+            _is.undefined(config.accessory_version) || _is.not.number(config.accessory_version)) {
+            // Invalid configuration
+            throw new TypeError(`Info table configuration is invalid.`);
+        }
+        if (_is.under(config.accessory_version, 1)) {
+            throw new RangeError(`Info table data out of range.`);
+        }
+
+        this._verPlugIn = config.plugin_version;
+        this._verHomebridgeAPI = config.homebridge_api_version;
+        this._verHomebridgeServer = config.homebridge_server_version;
+        this._verHAPLibrary = config.hap_library_version;
+        this._verAccessory = config.accessory_version;
+    }
+
+    /**
+     * @description Read Property accessor for the plug-in version
+     * @returns {string} - Plug-in version
+     * @private
+     */
+    get PlugInVersion() {
+        return this._verPlugIn;
+    }
+
+    /**
+     * @description Read Property accessor for the Homebridge API version
+     * @returns {string} - Homebridge API version
+     * @private
+     */
+    get HomebridgeAPIVersion() {
+        return this._verHomebridgeAPI;
+    }
+
+    /**
+     * @description Read Property accessor for the Homebridge Server version
+     * @returns {string} - Homebridge API version
+     * @private
+     */
+    get HomebridgeServerVersion() {
+        return this._verHomebridgeServer;
+    }
+
+    /**
+     * @description Read Property accessor for the HAP Library version
+     * @returns {string} - HAP Library version
+     * @private
+     */
+    get HAPLibraryVersion() {
+        return this._verHAPLibrary;
+    }
+
+    /**
+     * @description Read Property accessor for the Accessory version
+     * @returns {string} - Accessory version
+     * @private
+     */
+    get AccessoryVersion() {
+        return this._verAccessory;
+    }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+<script src="scripts/collapse.js" defer></script>
+
+
+</body>
+</html>
