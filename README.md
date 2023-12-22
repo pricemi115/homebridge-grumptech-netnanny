@@ -68,6 +68,7 @@ Additionally, especially if this system will be running other homebridge modules
 | Enable History Logging | Enables / Disables logging of ping results | enable_history_logging | Common | Boolean | N/A | True | False | True ||
 | History Reporting Period | The time, in days, for generating report logs of network performance | history_logging:reporting_period | Common | Number | Time:days | 1 | 0.041667 | 100 | |
 | Maximum History Size | Maximum number of result sets to record in the history database | history_logging:maximum_history_size | Common | Number | N/A | 250000 | 2500 | 5000000 ||
+| Oretention Period | Number of days to retain history log files. | history_logging:retention_period | Common | Number | Time:days | 30 | 1 | 365 ||
 | Target Type | Type of target. | ping_targets:items:target_type | Per Target | String | N/A | ipv4 | uri, ipv4, ipv6, gateway, cable_modem |||
 | Modem Type | Type of cable modem. | ping_targets:items:modem_type | Per Target | String | N/A | other | xfinity, netgear, other || Only valud when the target type is set to _cable_modem_ |
 | Target Destination | Destination for the ping | ping_targets:items:target_dest | Per Target | String ||||| Not applicable for gateway or cable_modem |
@@ -98,10 +99,10 @@ It should also be noted, that the _Detected_ value will not be set to abnormal u
 
 When the accessory is inactive, the _Active_ and _Low Battery Status_ are set.
 
-When _Enable History Logging_ is active, the filtered ping results will be stored in an in-memory SQLite database. The data will be exported to a CSV data file periodically or upon manual request. The exported data will be saved to a folder named _GrumpTechHomebridgeNetNanny_ located in the homebridge configuration folder. For example, on macOS `~/.homebridge/GrumpTechHomebridgeNetNanny/`.
+When _Enable History Logging_ is active, the filtered ping results will be stored in an in-memory database. The data will be exported to a CSV data file periodically or upon manual request. The exported data will be saved to a folder named _GrumpTechHomebridgeNetNanny_ located in the homebridge configuration folder. For example, on macOS `~/.homebridge/GrumpTechHomebridgeNetNanny/`.
 
 ## Restrictions
-This module operates by using shell commands to the `ping` and `route` programs. At this time, the plugin assumes macOS output when parsing the results. While the `ping` output is consistent across operating systems, the `route` output is operating system specific. As a result, the `gateway/router` type selection is limited to macOS.
+This module operates by using shell commands to the `ping` and `route` programs. At this time, the plugin assumes macOS output when parsing the results. While the `ping` output is consistent across operating systems, the `route` output is operating system specific. As a result, the `gateway/router` type selection is limited to macOS and linux.
 
 ## Known Issues and Planned Enhancements
 Refer to the bugs and enhancements listed [here](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues)
