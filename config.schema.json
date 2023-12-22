@@ -103,6 +103,21 @@
                                       ],
                                     "required": true
                                 },
+                                "modem_type": {
+                                    "title": "Modem Type",
+                                    "description": "Type of cable modem",
+                                    "type": "string",
+                                    "default": "other",
+                                    "oneOf": [
+                                        { "title": "Xfinity XFi", "enum": ["xfinity"] },
+                                        { "title": "Netgear", "enum": ["netgear"] },
+                                        { "title": "Other", "enum": ["other"] }
+                                    ],
+                                    "required": true,
+                                    "condition": {
+                                        "functionBody": "return (model.settings.ping_targets[arrayIndices] && model.settings.ping_targets[arrayIndices].target_type === 'cable_modem');"
+                                    }
+                                },
                                 "target_dest": {
                                     "title": "Target Destination",
                                     "description": "Destination for the ping",
