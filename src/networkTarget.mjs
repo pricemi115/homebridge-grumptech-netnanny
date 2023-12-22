@@ -184,6 +184,23 @@ export const ALERT_BITMASK = {
 };
 
 /**
+ * @description Enumeration for modem types
+ * @readonly
+ * @private
+ * @enum {string}
+ * @property {string} xfinity - Modem type for Xfinity XFi modems
+ * @property {string} netgear - Modem type for a Netgear modem
+ * @property {string} other - Modem type for other modem types.
+ */
+export const MODEM_TYPES = {
+    /* eslint-disable key-spacing */
+    XFINITY     : 'xfinity',
+    NETGEAR     : 'netgear',
+    OTHER       : 'other',
+    /* eslint-enable key-spacing */
+};
+
+/**
  * @description Enumeration for Standard Deviation Types. Used to set the offset when computing the result.
  * @readonly
  * @private
@@ -247,6 +264,7 @@ export class NetworkTarget extends EventEmitter {
      * @description Constructor
      * @param {object} config - Configuration data
      * @param {string=} config.target_type - Type of target
+     * @param {string=} config.modem_type - Type of cable modem
      * @param {string=} config.target_dest - Destination of the target
      * @param {string=} config.loss_lmit - Percentage of lost packets that is tolerable.
      * @param {string=} config.packet_size - Size, in bytes, of the ping packet
@@ -266,6 +284,7 @@ export class NetworkTarget extends EventEmitter {
         let pingPeriod      = DEFAULT_PERIOD_SEC;
         let pingInterval    = DEFAULT_PING_INTERVAL;
         let targetType      = TARGET_TYPES.URI;
+        let modemType       = MODEM_TYPES.OTHER;
         let targetDest      = 'localhost';
         let expectedLatency = 10.0;
         let expectedJitter  = 1.0;
@@ -278,6 +297,7 @@ export class NetworkTarget extends EventEmitter {
         if (config !== undefined) {
             if (                                                   (typeof(config) !== 'object')                          ||
                 ((config.target_type !== undefined)             && (typeof(config.target_type) !== 'string'))             ||
+                ((config.modem_type !== undefined)              && (typeof(config.modem_type) !== 'string'))              ||
                 ((config.target_dest !== undefined)             && (typeof(config.target_dest) !== 'string'))             ||
                 ((config.loss_limit !== undefined)              && (typeof(config.loss_limit) !== 'number'))              ||
                 ((config.packet_size !== undefined)             && (typeof(config.packet_size) !== 'number'))             ||
@@ -305,14 +325,24 @@ export class NetworkTarget extends EventEmitter {
                     throw new RangeError(`config.target_type is invalid: ${config.target_type}`);
                 }
             }
+            if (config.modem_type) {
+                let found = false;
+                for (const item in MODEM_TYPES) {
+                    if (config.modem_type.toLowerCase() === MODEM_TYPES[item]) {
+                        modemType = config.modem_type.toLowerCase();
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    throw new RangeError(`config.modem_type is invalid: ${config.modem_type}`);
+                }
+            }
             if (config.target_dest) {
                 if (config.target_dest.length > 0) {
-                    if ((targetType !== TARGET_TYPES.ROUTER) &&
+                    if ((targetType !== TARGET_TYPES.GATEWAY) &&
                         (targetType !== TARGET_TYPES.CABLE_MODEM)) {
                         targetDest = config.target_dest;
-                    }
-                    else {
-                        throw new Error(`Target destination is not valid. type:${targetType} dest:${config.target_dest}`);
                     }
                 }
                 else {
@@ -407,6 +437,7 @@ export class NetworkTarget extends EventEmitter {
 
         // Set internal members.
         this._target_type               = targetType;
+        this._modem_type                = modemType;
         this._target_dest               = targetDest;
         this._ping_count                = pingCount;
         this._loss_limit                = lossLimit;
@@ -447,10 +478,24 @@ export class NetworkTarget extends EventEmitter {
             case TARGET_TYPES.CABLE_MODEM:
             {
                 // Set the type to IPV4 and the destination to the common
-                // address ued for cable modems.
+                // address ued for the type of cable modems selected.
                 this._target_type = TARGET_TYPES.IPV4;
-                this._target_dest = '192.168.100.1';
 
+                switch (this._modem_type) {
+                    case MODEM_TYPES.XFINITY:
+                    {
+                        this._target_dest = '10.0.0.1';
+                        break;
+                    }
+
+                    case MODEM_TYPES.NETGEAR:
+                    case MODEM_TYPES.OTHER:
+                    default:
+                    {
+                        this._target_dest = '192.168.100.1';
+                        break;
+                    }
+                }
                 break;
             }
 
@@ -596,6 +641,19 @@ export class NetworkTarget extends EventEmitter {
      */
     get TargetType() {
         return this._target_type;
+    }
+
+    /**
+     * @description Read Property accessor for the modem type
+     * @returns {MODEM_TYPES} - type of modem
+     * @private
+     */
+    get ModemType() {
+        let modemType = undefined;
+        if (this.TargetType === TARGET_TYPES.CABLE_MODEM) {
+            modemType = this._modem_type;
+        }
+        return modemType;
     }
 
     /**

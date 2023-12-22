@@ -334,6 +334,10 @@ class NetworkPerformanceMonitorPlatform {
                         if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_type')) && (typeof(itemConfig.target_type) === 'string')) {
                             targetConfig.target_type = itemConfig.target_type;
                         }
+                        /* Get the Modem Type */
+                        if ((Object.prototype.hasOwnProperty.call(itemConfig, 'modem_type')) && (typeof(itemConfig.modem_type) === 'string')) {
+                            targetConfig.modem_type = itemConfig.modem_type;
+                        }
                         /* Get the Target Destination */
                         if ((Object.prototype.hasOwnProperty.call(itemConfig, 'target_dest')) && (typeof(itemConfig.target_dest) === 'string')) {
                             targetConfig.target_dest = itemConfig.target_dest;

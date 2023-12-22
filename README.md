@@ -10,7 +10,6 @@ The change history can be viewed [here](./CHANGELOG.md)
 Please refer to our [security policy](./SECURITY.md) for information on which versions are receiving security updates and how to report security vulnerabilities.
 
 ## Installation
-
 This plug-in is intended to be used with the [homebridge-config-ui-x](https://www.npmjs.com/package/homebridge-config-ui-x) homebridge management tool. If using _homebridge-config-ui-x_, simply search for _homebridge-grumptech-netnanny_ for installation, plug-in management, and configuration.
 
 To install the plugin manually:
@@ -70,6 +69,7 @@ Additionally, especially if this system will be running other homebridge modules
 | History Reporting Period | The time, in days, for generating report logs of network performance | history_logging:reporting_period | Common | Number | Time:days | 1 | 0.041667 | 100 | |
 | Maximum History Size | Maximum number of result sets to record in the history database | history_logging:maximum_history_size | Common | Number | N/A | 250000 | 2500 | 5000000 ||
 | Target Type | Type of target. | ping_targets:items:target_type | Per Target | String | N/A | ipv4 | uri, ipv4, ipv6, gateway, cable_modem |||
+| Modem Type | Type of cable modem. | ping_targets:items:modem_type | Per Target | String | N/A | other | xfinity, netgear, other || Only valud when the target type is set to _cable_modem_ |
 | Target Destination | Destination for the ping | ping_targets:items:target_dest | Per Target | String ||||| Not applicable for gateway or cable_modem |
 | Packet Loss Limit | The limit, in percent, of lost packets that will be tolerated. | ping_targets:items:loss_limit | Per Target | Number | Percent | 5 | 0 | 100 ||
 | Expected Latency | The expected latency, in milliseconds, for the ping. | ping_targets:items:expected_latency| Per Target | Number | Time:milliseconds | 10 | >0 | N/A ||
@@ -115,7 +115,7 @@ Refer to the bugs and enhancements listed [here](https://github.com/pricemi115/h
 
 ## Credits
 Many thanks to all the folks contributing to [Homebridge](https://homebridge.io) and to [oznu](https://github.com/oznu) for [homebridge-config-ui-x](https://www.npmjs.com/package/homebridge-config-ui-x), allowing for the possibility of this sort of fun and learning.<br/>
-Special thanks to [Dave Hamilton's](https://twitter.com/DaveHamilton), [John F. Braun](https://twitter.com/johnfbraun), and the [MacGeekGab](https://www.macgeekgab.com) podcast for inspiring the idea for this plugin.
+Special thanks to [Dave Hamilton's](https://twitter.com/DaveHamilton), and the [MacGeekGab](https://www.macgeekgab.com) podcast for inspiring the idea for this plugin.
 
 ## License
 Refer to [LICENSE.md](./LICENSE.md) for information regarding licensincg of this source code.
