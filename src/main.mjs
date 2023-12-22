@@ -68,7 +68,7 @@ import {InfoTable} from './tableInfo.mjs';
 
 // External dependencies and imports.
 import _debugModule from 'debug';
-import {writeFile as _writeFile, access as _access, mkdir as _mkdir, constants as _fsConstants} from 'node:fs';
+import {writeFile as _writeFile, access as _access, mkdir as _mkdir, constants as _fsConstants, readdir as _readdir, stat as _stat, rm as _rm} from 'node:fs';
 import {EOL as _EOL} from 'node:os';
 import {join as _join} from 'node:path';
 import _is from 'is-it-check';
@@ -185,6 +185,12 @@ const DEFAULT_DB_EXPORT_TIME_MS = 86400000/* milliseconds */;
 const DEFAULT_MAX_HISTORY_RECORDS = 250000;
 
 /**
+ * @description Default period, in milliseconds, for retaining log files.
+ * @private
+ * @readonly
+ */
+const DEFAULT_RETENTION_PERIOD_MS = (30.0 * 24.0 * 60.0 * 60.0 * 1000.0);
+/**
  * @description Initial value for the cached last export time.
  * @private
  * @readonly
@@ -284,6 +290,7 @@ class NetworkPerformanceMonitorPlatform {
         this._enableHistoryLogging = true;
         this._historyLoggingPeriod = DEFAULT_DB_EXPORT_TIME_MS;
         this._maximumHistorySize   = DEFAULT_MAX_HISTORY_RECORDS;
+        this._retentionThreshold   = DEFAULT_RETENTION_PERIOD_MS;
 
         // Check for Settings
         if (theSettings != undefined) {
@@ -302,6 +309,10 @@ class NetworkPerformanceMonitorPlatform {
                 /* Get the maximum history reporting size */
                 if ((Object.prototype.hasOwnProperty.call(theSettings.history_logging, 'maximum_history_size')) && (typeof(theSettings.history_logging.maximum_history_size) === 'number')) {
                     this._maximumHistorySize = theSettings.history_logging.maximum_history_size;
+                }
+                /* Get the retention period (in days) */
+                if ((Object.prototype.hasOwnProperty.call(theSettings.history_logging, 'retention_period')) && (typeof(theSettings.history_logging.retention_period) === 'number')) {
+                    this._retentionThreshold = theSettings.history_logging.retention_period * (24.0 * 60.0 * 60.0 * 1000.0);
                 }
             }
 
@@ -1316,9 +1327,57 @@ class NetworkPerformanceMonitorPlatform {
      * @private
      */
     async _on_export_database(flushHistory) {
+        const FILENAME_BASE = `History_`;
+        const FILENAME_EXT  = `.csv`;
+
         if (_is.not.boolean(flushHistory)) {
             throw new TypeError(`'flushHistory' must be a boolean.`);
         }
+
+        // Get list of existing files.
+        _readdir(_pathStorageRoot, (err, files) => {
+            if (_is.null(err)) {
+                if (_is.array(files)) {
+                    files.forEach((file) => {
+                        // Ensure that the file is a log entry.
+                        if (_is.string(file) &&
+                            _is.startWith(file, FILENAME_BASE) &&
+                            _is.endWith(file, FILENAME_EXT)) {
+                            // Construct the full path
+                            const fullPath = _join(_pathStorageRoot, file);
+
+                            // Determine the stats of the file. (To get the age.)
+                            _stat(fullPath, (err, status) => {
+                                if (_is.null(err)) {
+                                    // Get the file age.
+                                    const age = Date.now() - status.mtimeMs;
+
+                                    // Delete the file if too old.
+                                    if (age > this._retentionThreshold) {
+                                        // Remove the file.
+                                        this._log.debug(`Removing file: ${file}`);
+                                        _rm(fullPath, (err) => {
+                                            if (_is.not.null(err)) {
+                                                this._log.debug(`Error removing file: ${file}`);
+                                                this._log.debug(err);
+                                            }
+                                        });
+                                    }
+                                }
+                                else {
+                                    this._log.debug(`Error encountered (status):`);
+                                    this._log.debug(err);
+                                }
+                            });
+                        }
+                    });
+                }
+            }
+            else {
+                this._log.debug(`Error encountered (readdir):`);
+                this._log.debug(err);
+            }
+        });
 
         if (_is.not.undefined(this._historyData)) {
             // Get the current timestamp
@@ -1327,7 +1386,7 @@ class NetworkPerformanceMonitorPlatform {
             this._exportInProgres = true;
 
             // Build the path for the log file.
-            const fileName = _join(_pathStorageRoot, `History_${timestamp.getTime()}.csv`);
+            const fileName = _join(_pathStorageRoot, `${FILENAME_BASE}${timestamp.getTime()}${FILENAME_EXT}`);
 
             this._log.debug(`Exporting database: ${fileName}`);
             let historyContent = '';

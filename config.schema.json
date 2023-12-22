@@ -79,6 +79,15 @@
                                 "minimum": 2500,
                                 "maximum": 5000000,
                                 "required": true
+                            },
+                            "retention_period": {
+                                "title": "Retention Period",
+                                "description": "Period, in days, for retaining history logs.",
+                                "type": "number",
+                                "default": 30.0,
+                                "minimum": 1.0,
+                                "maximum": 365.0,
+                                "required": true
                             }
                         }
                     },
