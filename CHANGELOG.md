@@ -4,6 +4,17 @@ Change history for _homebridge-grumptech-netnanny_
 ---
 ---
 
+## [1.6.0] 2023-DEC-22 - Holiday Release
+### What's new
+- [Issue #55](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/55): Automatically purge old history log files based on user-specified retention period.
+
+### Fixes
+- [Issue #51](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/51): Support gateway/router target type on linux operating systems.
+- [Issue #52](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/52): Remove SQLite for recording history in order to support linux operating systems.
+- [Issue #54](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/54): Support additional cable modems, specifically Xfinity XFi modems. Also, fixed a bug causing a crash on startup when selecting Cable Modem as a target type on all operating systems.
+- Update dependencies
+
+---
 ## [1.5.3] 2023-MAR-21 - Another quick fix
 ### Fixes
 - [Issue #48](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/48): Fix issue resulting in an infinite deferral of Gateway/Router targets. Gateway/Router targets now fail more gracefully when the gateway cannot be identified.

@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    
+    <meta charset="utf-8">
+    <title>tableData.mjs - Documentation</title>
+    
+    
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc.css">
+    <script src="scripts/nav.js" defer></script>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav >
+    
+    <input type="text" id="nav-search" placeholder="Search" />
+    
+    
+    <h2><a href="index.html">Home</a></h2><h2><a href="https://github.com/pricemi115/homebridge-grumptech-netnanny" target="_blank" >GrumpTech</a></h2><h3>Modules</h3><ul><li><a href="module-InfoTable.html">InfoTable</a></li><li><a href="module-NetNannyModule.html">NetNannyModule</a></li><li><a href="module-NetworkTargetModule.html">NetworkTargetModule</a></li><li></li></ul><h3>Tutorials</h3><ul><li><a href="tutorial-license.html">license</a></li><li><a href="tutorial-security.html">security</a></li></ul>
+    
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">tableData.mjs</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/**
+ * @description Stores network performance data.
+ * @copyright 2023
+ * @author Mike Price &lt;dev.grumptech@gmail.com>
+ * @module NetworkTargetModule
+ * @requires is-it-check
+ * @see {@link https://github.com/evdama/is-it-check}
+ */
+
+// External dependencies and imports.
+import _is from 'is-it-check';
+
+/**
+ * @description Class for recording network data
+ */
+export class DataTable {
+    /**
+     * @description Constructor
+     * @param {object} config - Configuration data
+     * @param {Date=} config.date - Date/Time of the event. Will default to now.
+     * @param {number} config.error - Bitmask of the fault(s) observed.
+     * @param {number} config.packet_loss - Packet loss
+     * @param {number} config.jitter - Jitter
+     * @param {number} config.latency - Latency
+     * @throws {TypeError} - thrown if the configuration is undefined or any parameters are not of the expected type.
+     * @throws {RangeError} - thrown if the configuration parameters are out of bounds.
+     * @private
+     */
+    constructor(config) {
+        if (_is.undefined(config) || _is.not.object(config) ||
+            _is.undefined(config.error) || _is.not.number(config.error) ||
+            _is.undefined(config.packet_loss) || _is.not.number(config.packet_loss) ||
+            _is.undefined(config.jitter) || _is.not.number(config.jitter) ||
+            _is.undefined(config.latency) || _is.not.number(config.latency) ||
+            (_is.not.undefined(config.date) &amp;&amp; !(config.date instanceof Date))) {
+            // Invalid configuration
+            throw new TypeError(`Data table configuration is invalid.`);
+        }
+        if (_is.under(config.packet_loss, 0.0) || _is.above(config.packet_loss, 100.0) ||
+            _is.under(config.jitter, 0.0) || _is.under(config.latency, 0.0)) {
+            throw new RangeError(`Data table data out of range.`);
+        }
+
+        this._error = config.error;
+        this._packetLoss = config.packet_loss;
+        this._jitter = config.jitter;
+        this._latency = config.latency;
+
+        this._date = config.date;
+        if (_is.undefined(config.date)) {
+            // Default to now, in UTC
+            const now = new Date();
+            /* eslint-disable indent */
+            this._date = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(),
+                                  now.getUTCHours(), now.getUTCMinutes(), now.getUTCSeconds(), now.getUTCMilliseconds());
+           /* eslint-enable indent */
+        }
+    }
+
+    /**
+     * @description Read Property accessor for the history date
+     * @returns {Date} - Date of history entry
+     * @private
+     */
+    get Date() {
+        return this._date;
+    }
+
+    /**
+     * @description Read Property accessor for the history error
+     * @returns {number} - error bitmask
+     * @private
+     */
+    get Error() {
+        return this._error;
+    }
+
+    /**
+     * @description Read Property accessor for the history packet loss
+     * @returns {number} - Packet Loss
+     * @private
+     */
+    get PacketLoss() {
+        return this._packetLoss;
+    }
+
+    /**
+     * @description Read Property accessor for the history jitter
+     * @returns {number} - Jitter
+     * @private
+     */
+    get Jitter() {
+        return this._jitter;
+    }
+
+    /**
+     * @description Read Property accessor for the history latency
+     * @returns {number} - Latency
+     * @private
+     */
+    get Latency() {
+        return this._latency;
+    }
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+    
+    
+</div>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.2</a> using the <a href="https://github.com/clenemt/docdash">docdash</a> theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/polyfill.js"></script>
+<script src="scripts/linenumber.js"></script>
+
+<script src="scripts/search.js" defer></script>
+
+
+<script src="scripts/collapse.js" defer></script>
+
+
+</body>
+</html>

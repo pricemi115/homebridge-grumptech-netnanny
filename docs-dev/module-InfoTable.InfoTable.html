@@ -3,7 +3,7 @@
 <head>
     
     <meta charset="utf-8">
-    <title>Tutorial: security - Documentation</title>
+    <title>InfoTable - Documentation</title>
     
     
     <script src="scripts/prettify/prettify.js"></script>
@@ -37,43 +37,743 @@
 
 <div id="main">
     
-    <h1 class="page-title">Tutorial: security</h1>
+    <h1 class="page-title">InfoTable</h1>
     
 
-    <section>
+    
+
+
+
+
+<section>
 
 <header>
     
-
-    <h2>security</h2>
+        <h2>
+            <span class="ancestors"><a href="module-InfoTable.html">InfoTable</a>.</span>
+        
+        
+            InfoTable
+        
+        </h2>
+        
+    
 </header>
 
 <article>
-    <h1>Security Policy</h1>
-<h2>Supported Versions</h2>
-<p>Use this section to tell people about which versions of your project are
-currently being supported with security updates.</p>
-<table>
-<thead>
-<tr>
-<th>Version</th>
-<th>Supported</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>1.x.x</td>
-<td>:white_check_mark:</td>
-</tr>
-</tbody>
+    
+        <div class="container-overview">
+        
+            
+
+    
+
+    <h4 class="name" id="InfoTable"><span class="type-signature type-signature-private">(private) </span>new InfoTable<span class="signature">(config)</span><span class="type-signature"></span></h4>
+
+    
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Class for storing plug-in information</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="tableInfo.mjs.html">tableInfo.mjs</a>, <a href="tableInfo.mjs.html#line16">line 16</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <h5 class="h5-parameters">Parameters:</h5>
+    
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>config</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">object</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Configuration data</p>
+                <h6>Properties</h6>
+                
+
+<table class="params">
+    <thead>
+    <tr>
+        
+        <th>Name</th>
+        
+
+        <th>Type</th>
+
+        
+
+        
+
+        <th class="last">Description</th>
+    </tr>
+    </thead>
+
+    <tbody>
+    
+
+        <tr>
+            
+                <td class="name"><code>plugin_version</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Plug-in version.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>homebridge_api_version</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Homebridge API version.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>homebridge_server_version</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Homebridge Server version.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>hap_library_version</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">string</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>HAP Library version.</p></td>
+        </tr>
+
+    
+
+        <tr>
+            
+                <td class="name"><code>accessory_version</code></td>
+            
+
+            <td class="type">
+            
+                
+<span class="param-type">number</span>
+
+
+
+            
+            </td>
+
+            
+
+            
+
+            <td class="description last"><p>Accessory version.</p></td>
+        </tr>
+
+    
+    </tbody>
 </table>
-<h2>Reporting a Vulnerability</h2>
-<p>To report a vulnerability, please contact the developer directly at dev.grumptech@gmail.com</p>
-<p>Once notified the report will be investigated and you will be notified of the findings within
-90 days.</p>
+
+            </td>
+        </tr>
+
+    
+    </tbody>
+</table>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<h5 class="h5-throws">Throws:</h5>
+<ul>
+        <li>
+
+<dl>
+    <dt>
+        <div class="param-desc usertext">
+        <ul>
+<li>thrown if the configuration is undefined or any parameters are not of the expected type.</li>
+</ul>
+        </div>
+    </dt>
+    <dd></dd>
+    <dt>
+        <dl class="param-type">
+            <dt>
+                Type
+            </dt>
+            <dd>
+                
+<span class="param-type">TypeError</span>
+
+
+
+            </dd>
+        </dl>
+    </dt>
+    <dd></dd>
+</dl>
+
+</li>
+    
+        <li>
+
+<dl>
+    <dt>
+        <div class="param-desc usertext">
+        <ul>
+<li>thrown if the configuration parameters are out of bounds.</li>
+</ul>
+        </div>
+    </dt>
+    <dd></dd>
+    <dt>
+        <dl class="param-type">
+            <dt>
+                Type
+            </dt>
+            <dd>
+                
+<span class="param-type">RangeError</span>
+
+
+
+            </dd>
+        </dl>
+    </dt>
+    <dd></dd>
+</dl>
+
+</li>
+    </ul>
+
+
+
+
+
+        
+        </div>
+    
+
+    
+
+    
+
+    
+    
+    
+
+     
+
+    
+
+    
+        <h3 class="subsection-title">Members</h3>
+
+        
+            
+<h4 class="name" id="AccessoryVersion"><span class="type-signature type-signature-private">(private) </span>AccessoryVersion<span class="type-signature"></span></h4>
+
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Read Property accessor for the Accessory version</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="tableInfo.mjs.html">tableInfo.mjs</a>, <a href="tableInfo.mjs.html#line91">line 91</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+<div class="description usertext">
+    <p>Read Property accessor for the Accessory version</p>
+</div>
+
+
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="HAPLibraryVersion"><span class="type-signature type-signature-private">(private) </span>HAPLibraryVersion<span class="type-signature"></span></h4>
+
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Read Property accessor for the HAP Library version</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="tableInfo.mjs.html">tableInfo.mjs</a>, <a href="tableInfo.mjs.html#line82">line 82</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+<div class="description usertext">
+    <p>Read Property accessor for the HAP Library version</p>
+</div>
+
+
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="HomebridgeAPIVersion"><span class="type-signature type-signature-private">(private) </span>HomebridgeAPIVersion<span class="type-signature"></span></h4>
+
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Read Property accessor for the Homebridge API version</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="tableInfo.mjs.html">tableInfo.mjs</a>, <a href="tableInfo.mjs.html#line64">line 64</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+<div class="description usertext">
+    <p>Read Property accessor for the Homebridge API version</p>
+</div>
+
+
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="HomebridgeServerVersion"><span class="type-signature type-signature-private">(private) </span>HomebridgeServerVersion<span class="type-signature"></span></h4>
+
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Read Property accessor for the Homebridge Server version</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="tableInfo.mjs.html">tableInfo.mjs</a>, <a href="tableInfo.mjs.html#line73">line 73</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+<div class="description usertext">
+    <p>Read Property accessor for the Homebridge Server version</p>
+</div>
+
+
+
+
+
+
+
+
+        
+            
+<h4 class="name" id="PlugInVersion"><span class="type-signature type-signature-private">(private) </span>PlugInVersion<span class="type-signature"></span></h4>
+
+
+
+
+
+<dl class="details">
+    
+    <dt class="tag-description">Description:</dt>
+    <dd class="tag-description"><ul class="dummy"><li><p>Read Property accessor for the plug-in version</p></li></ul></dd>
+    
+
+    
+    <dt class="tag-source">Source:</dt>
+    <dd class="tag-source"><ul class="dummy"><li>
+        <a href="tableInfo.mjs.html">tableInfo.mjs</a>, <a href="tableInfo.mjs.html#line55">line 55</a>
+    </li></ul></dd>
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+
+    
+</dl>
+
+
+
+
+
+<div class="description usertext">
+    <p>Read Property accessor for the plug-in version</p>
+</div>
+
+
+
+
+
+
+
+
+        
+    
+
+    
+
+    
+
+    
 </article>
 
 </section>
+
+
+
 
     
     
