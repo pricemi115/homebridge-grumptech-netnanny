@@ -162,7 +162,7 @@ const GENERAL_PURPOSE_SWITCH_COLLECTION = {
  */
 const SERVICE_INFO = {
     /* eslint-disable key-spacing, max-len */
-    POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping Control`,    udst:`PingControl`},
+    POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping`,            udst:`PingControl`},
     LATENCY : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Latency`,         udst:`PingLatency`, peak:_TARGET_PEAK_TYPES.LATENCY,    data_buffer:_TARGET_DATA_BUFFER_TYPES.LATENCY,  alert_mask: _TARGET_ALERT_BITMASK.LATENCY},
     JITTER  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Jitter`,          udst:`PingJitter`,  peak:_TARGET_PEAK_TYPES.JITTER,     data_buffer:_TARGET_DATA_BUFFER_TYPES.JITTER,   alert_mask: _TARGET_ALERT_BITMASK.JITTER},
     LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS},
@@ -813,7 +813,7 @@ class NetworkPerformanceMonitorPlatform {
         // Does this accessory have a Switch service?
         let switchState = true;
         const serviceSwitch = accessory.getService(_hap.Service.Switch);
-        if ((serviceSwitch !== undefined) &&
+        if ((_is.existy(serviceSwitch)) &&
             (serviceSwitch instanceof _hap.Service.Switch)) {
             // Set the switch to the stored setting (the default is on).
             const theSettings = accessory.context.SETTINGS;
@@ -828,10 +828,10 @@ class NetworkPerformanceMonitorPlatform {
 
             // Also, if this is a Network Target, update the name, so it is recognizable in the Home app.
             if (isNetworkTarget) {
-                serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, `Power (${accessory.displayName})`);
+                serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, `${SERVICE_INFO.POWER.name} ${accessory.displayName}`);
             }
             else if (id === GENERAL_PURPOSE_SWITCH_COLLECTION.uuid) {
-                serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, `Export`);
+                serviceSwitch.updateCharacteristic(_hap.Characteristic.Name, SERVICE_INFO.EXPORT.name);
             }
 
             // Get the 'On' characteristic for the switch.
@@ -855,8 +855,8 @@ class NetworkPerformanceMonitorPlatform {
             const infoItems = [SERVICE_INFO.LATENCY, SERVICE_INFO.JITTER, SERVICE_INFO.LOSS];
             for (const item of infoItems) {
                 const service = accessory.getServiceById(item.uuid, item.udst);
-                if (service !== undefined) {
-                    service.updateCharacteristic(_hap.Characteristic.Name, `${item.name}-(${accessory.displayName})`);
+                if (_is.existy(service)) {
+                    service.updateCharacteristic(_hap.Characteristic.Name, `${item.name} - ${accessory.displayName}`);
                 }
             }
 
@@ -1066,8 +1066,8 @@ class NetworkPerformanceMonitorPlatform {
      */
     _handleOnGet(id, callback) {
         // Validate arguments
-        if ((id === undefined) ||
-            (typeof(id) !== 'string') || (id.length <= 0)) {
+        if (_is.not.existy(id) ||
+            _is.not.string(id) || (id.length <= 0)) {
             throw new TypeError(`id must be a non-zero length string.`);
         }
 
