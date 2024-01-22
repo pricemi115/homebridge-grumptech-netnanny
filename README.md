@@ -3,6 +3,34 @@
 [Homebridge Net Nanny](https://github.com/pricemi115/homebridge-grumptech-netnanny), by [GrumpTech](https://github.com/pricemi115/), is a [Homebridge](https://homebridge.io) dynamic platform plug-in that publishes metrics measuring the health of a network.
 This plugin was inspired by [Dave Hamilton's](https://twitter.com/DaveHamilton), of the [Mac Geek Gab](https://www.macgeekgab.com), 3-Ping strategy for evaluating network health.
 
+## What Problem Does Net Nanny Solve?
+
+When we suffer network problems, it's sometimes hard to figure out whether the problem is on the local area network, a problem with your Internet service provider, or a problem with a service to which you're trying to connect. In order to isolate the problem, a good practice is to open a terminal window and ping your router, then your modem, and then a known-reliable server on the Internet.
+
+The Net Nanny Homebridge plugin is designed to give you this information at a glance from within HomeKit. The Homebridge plugin creates a fake switch called Net Nanny, along with fake carbon dioxide (C02) sensors that will report your network health.
+
+When configured properly, in the Home app, you'll see a set of "Alarm Sensors". These sensors will represent the targets you set up for network testing, e.g. your router, modem, and external server(s). Each target will have three sensors associated with it: one for latency, one for jitter, and one for packet loss. Because we're simulating devices, the sensors will report their metrics in units of ppm (parts per million), but the values are actually milliseconds. In other words, if you see a latency of 8 ppm, that means its latency is 8ms.
+
+By having these sensors reporting these three metrics, you can get a sense of what normal looks like, and when things go wrong they could help you isolate the problem between your network and your ISP. 
+
+<div id="home_examples" style="vertical-align:top;">
+
+<img src="./assets/Net-Nanny-Bridge-in-Home-800.png"
+     alt="Net Nanny bridge in Apple Home"
+     style="padding:2px 2px 2px 2px;"
+     height="600px">
+<img src="./assets/2-Real-Sensors-and-12-Net-Nanny-Sensors-800.png"
+     alt="Alarms shown in Home app on iOS. 2 are real sensors but the other 12 represent 4 Net Nanny network targets"
+     style="padding:2px 2px 2px 2px;"
+     height="600px">
+<img src="./assets/Sensor-set-to-Apple-for-Latency-800.png"
+     alt="Example sensor to check latency to apple.com. Shows current level at 5ppm (ms) and peak at 6ppm (ms)."
+     style="padding:2px 2px 2px 2px;"
+     height="600px">
+
+
+</div>
+
 ## Change Log
 The change history can be viewed [here](./CHANGELOG.md)
 
