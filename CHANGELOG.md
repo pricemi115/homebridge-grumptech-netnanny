@@ -4,6 +4,14 @@ Change history for _homebridge-grumptech-netnanny_
 ---
 ---
 
+## [1.6.1] 2024-JAN-28 - Winter update
+### What's new
+- [Issue #62](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/62): Helpful explaination, provided by [Allison Sheridan](https://github.com/podfeet), of the problem solved by this plugin.
+
+### Fixes
+- [Issue #61](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/61): Resolved issues computing packet loss resulting from differences in ping results on different operating systems. Also resolved issues with setting alarms on the CO2 sensors.
+
+---
 ## [1.6.0] 2023-DEC-22 - Holiday Release
 ### What's new
 - [Issue #55](https://github.com/pricemi115/homebridge-grumptech-netnanny/issues/55): Automatically purge old history log files based on user-specified retention period.

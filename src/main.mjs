@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/no-undefined-types */
 /* eslint-disable jsdoc/valid-types */
 /**
  * @description Homebridge integration for Net Nanny
@@ -567,7 +568,7 @@ class NetworkPerformanceMonitorPlatform {
                 // Get the buffer filled flags.
                 /* eslint-disable new-cap */
                 const latencyBufferFilled   = results.sender.IsBufferFilled(SERVICE_INFO.LATENCY.data_buffer);
-                const jitterBufferFilled     = results.sender.IsBufferFilled(SERVICE_INFO.JITTER.data_buffer);
+                const jitterBufferFilled    = results.sender.IsBufferFilled(SERVICE_INFO.JITTER.data_buffer);
                 const lossBufferFilled      = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
                 /* eslint-enable new-cap */
 
@@ -608,7 +609,7 @@ class NetworkPerformanceMonitorPlatform {
                     if (this._historyData.has(id)) {
                         // Record the data.
                         const entry = new DataTable({error: faultCode, latency: results.ping_latency_ms, jitter: results.ping_jitter, packet_loss: results.packet_loss});
- 
+
                         // Save the data
                         const data = this._historyData.get(id);
                         if (_is.array(data)) {

@@ -1,7 +1,7 @@
 {
   "name": "homebridge-grumptech-netnanny",
   "displayName": "Homebridge Net Nanny",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "Network performance monitor.",
   "type": "module",
   "main": "dist/homebridge-grumptech-netnanny.js",
@@ -61,13 +61,13 @@
     "eslint": "^8.56.0",
     "eslint-config-google": "^0.14.0",
     "eslint-plugin-import": "^2.29.1",
-    "eslint-plugin-jsdoc": "^46.9.1",
+    "eslint-plugin-jsdoc": "^48.0.4",
     "eslint-plugin-node": "^11.1.0",
     "eslint-plugin-promise": "^6.1.1",
     "jest": "^29.7.0",
     "jsdoc": "^4.0.2",
     "string-replace-loader": "^3.1.0",
-    "webpack": "^5.89.0",
+    "webpack": "^5.90.0",
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {

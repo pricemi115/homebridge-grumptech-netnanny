@@ -7,9 +7,12 @@ This plugin was inspired by [Dave Hamilton's](https://twitter.com/DaveHamilton),
 
 When we suffer network problems, it's sometimes hard to figure out whether the problem is on the local area network, a problem with your Internet service provider, or a problem with a service to which you're trying to connect. In order to isolate the problem, a good practice is to open a terminal window and ping your router, then your modem, and then a known-reliable server on the Internet.
 
-The Net Nanny Homebridge plugin is designed to give you this information at a glance from within HomeKit. The Homebridge plugin creates a fake switch called Net Nanny, along with fake carbon dioxide (CO2) sensors that will report your network health.
+The Net Nanny Homebridge plugin is designed to give you this information at a glance from within HomeKit. The Homebridge plugin creates several services to HomeKit:
+- a collection of switches called _NetNanny Switches_. At the present time this collection contains only one switch, called _Export History_, which will generate an on-demand log of all ping data collected thus far.
+- a switch for each ping target that allows the user to control each target separately.
+- a set of fake carbon dioxide (CO2) services that will report your network health.
 
-When configured properly, in the Home app, you'll see a set of "Alarm Sensors". These sensors will represent the targets you set up for network testing, e.g. your router, modem, and external server(s). Each target will have three sensors associated with it: one for latency, one for jitter, and one for packet loss. Because we're simulating devices, the sensors will report their metrics in units of ppm (parts per million), but the values are actually milliseconds. In other words, if you see a latency of 8 ppm, that means its latency is 8ms.
+When configured properly, in the Home app, you'll see a set of "Alarm Sensors". These sensors will represent the targets you set up for network testing, e.g. your router, modem, and external server(s). Each target will have three sensors associated with it: one for latency, one for jitter, and one for packet loss. Because we're simulating these services, the sensors will report their metrics in units of ppm (parts per million), but the values are actually milliseconds for latency and jitter and percent for packet loss. In other words, if you see a latency of 8 ppm and a packet loss of 10 ppm, that means its latency is 8ms and the packet loss is 10%.
 
 By having these sensors reporting these three metrics, you can get a sense of what normal looks like, and when things go wrong they could help you isolate the problem between your network and your ISP. 
 
