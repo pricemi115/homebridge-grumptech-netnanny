@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/no-undefined-types */
 /**
  * @description Monitors network performance for a target based on ping results.
  * @copyright 2021

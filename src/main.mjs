@@ -1,3 +1,4 @@
+/* eslint-disable jsdoc/no-undefined-types */
 /* eslint-disable jsdoc/valid-types */
 /**
  * @description Homebridge integration for Net Nanny
@@ -608,7 +609,7 @@ class NetworkPerformanceMonitorPlatform {
                     if (this._historyData.has(id)) {
                         // Record the data.
                         const entry = new DataTable({error: faultCode, latency: results.ping_latency_ms, jitter: results.ping_jitter, packet_loss: results.packet_loss});
- 
+
                         // Save the data
                         const data = this._historyData.get(id);
                         if (_is.array(data)) {
