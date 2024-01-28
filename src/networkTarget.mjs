@@ -833,8 +833,26 @@ export class NetworkTarget extends EventEmitter {
             // Spawn a 'ping' to determine the performance of the network target
             const ping = new _SpawnHelper();
             ping.on(_SPAWN_HELPER_EVENTS.EVENT_COMPLETE, this._CB__ping);
+            const pingArgs = [];
+            const operatingSystem = process.platform;
+            switch (operatingSystem.toLowerCase()) {
+                case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_LINUX: {
+                    // Ensure that we are informed of requests that go unserviced.
+                    pingArgs.push('-O');
+                    break;
+                }
+
+                case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_DARWIN:
+                case SUPPORTED_GATEWAY_OPERATING_SYSTEMS.OS_WINDOWS:
+                default: {
+                    // No-Op
+                    break;
+                }
+            }
+            pingArgs.push(`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, this.TargetDestination);
+
             // eslint-disable-next-line new-cap
-            ping.Spawn({command: 'ping', arguments: [`-c${this.PingCount}`, `-i${this.PingInterval}`, `-s${this.PacketSize}`, this.TargetDestination]});
+            ping.Spawn({command: 'ping', arguments: pingArgs});
 
             // Update the delay
             delay = this.PingPeriod * CONVERT_SEC_TO_MS;
@@ -855,16 +873,10 @@ export class NetworkTarget extends EventEmitter {
      */
     _on_process_ping(response) {
         _debug(`'${response.source.Command} ${response.source.Arguments}' Spawn Helper Result: valid:${response.valid}`);
-        _debug(response.result);
+        _debug(response.result.toString());
 
         // Default values used for publishing to listeners
-        let err             = true;
-        // Map for tracking which buffers to trim (from the left)
-        /* eslint-disable indent */
-        const removeOld = new Map([[DATA_BUFFER_TYPES.LATENCY,  true],
-                                 [DATA_BUFFER_TYPES.JITTER, true],
-                                 [DATA_BUFFER_TYPES.LOSS,  true]]);
-        /* eslint-disable indent */
+        let err = true;
 
         if (response.valid &&
             (response.result !== undefined)) {
@@ -874,6 +886,7 @@ export class NetworkTarget extends EventEmitter {
             // -------------------
             // Find the raw ping data and statistics
             const RAW_PING_SEQ_TAG = 'icmp_seq=';
+            const PACKET_LOSS_TAG = '% packet loss';
             const rawPingTime = [];
             let rawPingLossCount = 0;
             for (let index=0; index<lines.length; index++) {
@@ -894,15 +907,26 @@ export class NetworkTarget extends EventEmitter {
                     }
                     /* eslint-enable camelcase */
                 }
+                // Search for lines that provide packet loss results.
+                else if (lines[index].toLowerCase().includes(PACKET_LOSS_TAG)) {
+                    const PACKET_LOSS_PREFIX = ', ';
+                    const PACKET_LOSS_SUFFIX = PACKET_LOSS_TAG;
+                    // This is a line with a raw reading. It is assumed these come before the statistics line.
+                    /* eslint-disable camelcase */
+                    const full_packet_loss_end = lines[index].indexOf(PACKET_LOSS_SUFFIX);
+                    if (full_packet_loss_end >= 0) {
+                        // eslint-disable-next-line max-len
+                        const packetLoss = Number.parseFloat(lines[index].slice((lines[index].lastIndexOf(PACKET_LOSS_PREFIX, full_packet_loss_end)+PACKET_LOSS_PREFIX.length), full_packet_loss_end));
+                        this._dataBuffers.get(DATA_BUFFER_TYPES.LOSS).push(packetLoss);
+                    }
+                    /* eslint-enable camelcase */
+                }
             }
 
             // Compute and Record the Ping results.
             const totalReadings = (rawPingLossCount + rawPingTime.length);
-            err = (totalReadings <= 0);
+            err = ((totalReadings < (this.PingCount - 1)) || (totalReadings > this.PingCount));
             if (!err) {
-                // Compute and Record Packet Loss.
-                const loss = (rawPingLossCount / totalReadings) * 100.0;
-                this._dataBuffers.get(DATA_BUFFER_TYPES.LOSS).push(loss);
                 // Compute and Record Jitter
                 try {
                     const jitter = this._computeJitter(rawPingTime);
@@ -919,20 +943,12 @@ export class NetworkTarget extends EventEmitter {
                 catch (e) {
                     // Ignore.
                 }
-
-                // Determine if the buffers need to be purged.
-                this._dataBuffers.forEach((value, key) => {
-                    if ((value.length < this._data_buffer_size)) {
-                        // Mark this buffer as not needing to be removed.
-                        removeOld.set(key, false);
-                    }
-                });
             }
         }
 
         // Purge old data, as needed
         this._dataBuffers.forEach((value, key) => {
-            if (removeOld.get(key)) {
+            if (value.length > this._data_buffer_size) {
                 // Purge the data. Ok if the buffer is already empty.
                 value.shift();
             }

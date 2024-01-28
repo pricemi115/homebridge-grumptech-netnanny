@@ -567,7 +567,7 @@ class NetworkPerformanceMonitorPlatform {
                 // Get the buffer filled flags.
                 /* eslint-disable new-cap */
                 const latencyBufferFilled   = results.sender.IsBufferFilled(SERVICE_INFO.LATENCY.data_buffer);
-                const jitterBufferFilled     = results.sender.IsBufferFilled(SERVICE_INFO.JITTER.data_buffer);
+                const jitterBufferFilled    = results.sender.IsBufferFilled(SERVICE_INFO.JITTER.data_buffer);
                 const lossBufferFilled      = results.sender.IsBufferFilled(SERVICE_INFO.LOSS.data_buffer);
                 /* eslint-enable new-cap */
 
