@@ -1053,6 +1053,9 @@ class NetworkPerformanceMonitorPlatform {
 
             /* Software Version */
             accessoryInfoService.updateCharacteristic(_hap.Characteristic.SoftwareRevision, `v${accessory.context.VERSION}`);
+
+            /* Firmware/Plugin Revision */
+            accessoryInfoService.updateCharacteristic(_hap.Characteristic.FirmwareRevision, `${_PackageInfo.PLUGIN_VER}`);
         }
     }
 

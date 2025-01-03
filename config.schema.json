@@ -7,6 +7,14 @@
     "schema": {
         "type": "object",
         "properties": {
+            "name": {
+                "title": "Plugin Name",
+                "type": "string",
+                "default": "GrumpTech Homebridge Net Nanny",
+                "condition": {
+                    "functionBody": "return false;"
+                }
+            },
             "settings": {
                 "title": "Settings",
                 "type": "object",
