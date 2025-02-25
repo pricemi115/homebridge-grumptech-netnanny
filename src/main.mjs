@@ -91,7 +91,7 @@ const _debug = _debugModule('homebridge');
  * @private
  * @readonly
  */
-const ACCESSORY_VERSION = 2;
+const ACCESSORY_VERSION = 2.1;
 
 /**
  * @description Package Information
@@ -122,7 +122,8 @@ const ACCESSORY_TYPES = {
  * @readonly
  */
 const GENERAL_PURPOSE_SWITCH_COLLECTION = {
-    uuid: '38E010FD-1F45-4C8D-AF2A-D777538D120C',
+    uuid: '38E010FD 1F45 4C8D AF2A D777538D120C',
+    legacy_uuid: '38E010FD-1F45-4C8D-AF2A-D777538D120C',
     name: 'NetNanny Switches',
 };
 
@@ -163,11 +164,11 @@ const GENERAL_PURPOSE_SWITCH_COLLECTION = {
  */
 const SERVICE_INFO = {
     /* eslint-disable key-spacing, max-len */
-    POWER   : {uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping`,            udst:`PingControl`},
-    LATENCY : {uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Latency`,         udst:`PingLatency`, peak:_TARGET_PEAK_TYPES.LATENCY,    data_buffer:_TARGET_DATA_BUFFER_TYPES.LATENCY,  alert_mask: _TARGET_ALERT_BITMASK.LATENCY},
-    JITTER  : {uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Jitter`,          udst:`PingJitter`,  peak:_TARGET_PEAK_TYPES.JITTER,     data_buffer:_TARGET_DATA_BUFFER_TYPES.JITTER,   alert_mask: _TARGET_ALERT_BITMASK.JITTER},
-    LOSS    : {uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS},
-    EXPORT  : {uuid:`E570C0EB-7B9E-4808-8AE1-FA882061057A`, name:`Export History`,  udst:`ExportHistory`},
+    POWER   : {uuid:`B3D9583F 2050 43B6 A179 9D453B494220`, legacy_uuid:`B3D9583F-2050-43B6-A179-9D453B494220`, name:`Ping`,            udst:`PingControl`},
+    LATENCY : {uuid:`9B838A70 8F81 4B76 BED5 3729F8F34F33`, legacy_uuid:`9B838A70-8F81-4B76-BED5-3729F8F34F33`, name:`Latency`,         udst:`PingLatency`, peak:_TARGET_PEAK_TYPES.LATENCY,    data_buffer:_TARGET_DATA_BUFFER_TYPES.LATENCY,  alert_mask: _TARGET_ALERT_BITMASK.LATENCY},
+    JITTER  : {uuid:`67434B8C F3CC 44EA BBE9 15B4E7A2CEBF`, legacy_uuid:`67434B8C-F3CC-44EA-BBE9-15B4E7A2CEBF`, name:`Jitter`,          udst:`PingJitter`,  peak:_TARGET_PEAK_TYPES.JITTER,     data_buffer:_TARGET_DATA_BUFFER_TYPES.JITTER,   alert_mask: _TARGET_ALERT_BITMASK.JITTER},
+    LOSS    : {uuid:`9093B0DE 078A 4B19 8081 2998B26A9017`, legacy_uuid:`9093B0DE-078A-4B19-8081-2998B26A9017`, name:`Packet Loss`,     udst:`PacketLoss`,  peak:_TARGET_PEAK_TYPES.LOSS,       data_buffer:_TARGET_DATA_BUFFER_TYPES.LOSS,     alert_mask: _TARGET_ALERT_BITMASK.LOSS},
+    EXPORT  : {uuid:`E570C0EB 7B9E 4808 8AE1 FA882061057A`, legacy_uuid:`E570C0EB-7B9E-4808-8AE1-FA882061057A`, name:`Export History`,  udst:`ExportHistory`},
     /* eslint-enable key-spacing, max-len */
 };
 
@@ -469,20 +470,23 @@ class NetworkPerformanceMonitorPlatform {
             // Flush any accessories that are not from this version, are runtime-only accessories, or are orphans (no corresponding network performance target).
             const accessoriesToRemove = [];
             for (const accessory of this._accessories.values()) {
-                if (!Object.prototype.hasOwnProperty.call(accessory.context, 'VERSION') ||
-                    (accessory.context.VERSION !== ACCESSORY_VERSION)) {
-                    this._log(`Accessory ${accessory.displayName} has accessory version ${accessory.context.VERSION}. Version ${ACCESSORY_VERSION} is expected.`);
+                let removed = false;
+                // Check if the accessory version cannot be managed
+                if (!this._managePluginVersion(accessory)) {
                     // This accessory needs to be replaced.
                     accessoriesToRemove.push(accessory);
+                    removed = true;
                 }
-                else if (!this._networkPerformanceTargets.has(accessory.context.ID)) {
-                    // Check for orphaned network target accessory.
-                    if (!Object.prototype.hasOwnProperty.call(accessory.context, 'TYPE') ||
-                        (accessory.context.TYPE == ACCESSORY_TYPES.NETWORK_TARGET)) {
-                        // Orphan Network Target accessory
-                        this._log(`Accessory ${accessory.displayName} is an orphan and should be purged.`);
-                        // This accessory needs to be removed.
-                        accessoriesToRemove.push(accessory);
+                if (!removed) {
+                    if (!this._networkPerformanceTargets.has(accessory.context.ID)) {
+                        // Check for orphaned network target accessory.
+                        if (!Object.prototype.hasOwnProperty.call(accessory.context, 'TYPE') ||
+                            (accessory.context.TYPE == ACCESSORY_TYPES.NETWORK_TARGET)) {
+                            // Orphan Network Target accessory
+                            this._log(`Accessory ${accessory.displayName} is an orphan and should be purged.`);
+                            // This accessory needs to be removed.
+                            accessoriesToRemove.push(accessory);
+                        }
                     }
                 }
             }
@@ -498,6 +502,11 @@ class NetworkPerformanceMonitorPlatform {
                     // There is no matching accessory for this network performance target.
                     // Create and register an accessory.
                     this._addNetworkPerformanceAccessory(target.ID);
+                }
+                else {
+                    // Configure the accessory
+                    const accy = this._accessories.get(target.ID);
+                    this._configureAccessory(accy);
                 }
 
                 // Register for the 'ready' event.
@@ -530,6 +539,96 @@ class NetworkPerformanceMonitorPlatform {
                 this._timeoutIDExportDB = setTimeout(this._bindExportDatabase, this._historyLoggingPeriod, false);
             }
         }
+    }
+
+
+    /**
+     * @description - Manage plugin version upgrading if possible
+     * @param {_PlatformAccessory} accessory - Accessory to be configured.
+     * @returns {boolean} - false if the accessory version cannot me managed. true, otherwise.
+     * @throws {TypeError} - thrown if 'accessory' is not a PlatformAccessory
+     * @private
+     */
+    _managePluginVersion(accessory) {
+        // Validate the argument(s)
+        if ((_is.undefined(accessory)) ||
+            (!(accessory instanceof _PlatformAccessory))) {
+            throw new TypeError('accessory must be a PlatformAccessory');
+        }
+        let versionManaged = false;
+
+        // Accessory is from a prior version and needs to be replaced.
+        if (Object.prototype.hasOwnProperty.call(accessory.context, 'VERSION') &&
+            _is.number(accessory.context.VERSION)) {
+            // Compute the version delta.
+            const versionDelta = ACCESSORY_VERSION - accessory.context.VERSION;
+
+            if (_is.not.negative(versionDelta)) {
+                // At current version
+                if (_is.equal(accessory.context.VERSION, ACCESSORY_VERSION)) {
+                    // Update the flag
+                    versionManaged = true;
+                }
+                // Upgrading...
+                else if (_is.above(ACCESSORY_VERSION, accessory.context.VERSION)) {
+                    this._log.debug(`Accessory '${accessory.displayName}' upgrading from v${accessory.context.VERSION} to v${ACCESSORY_VERSION}`);
+
+                    // Upgrading accessories prior to v2.1
+                    if (_is.under(accessory.context.VERSION, 2.1)) {
+                        this._log.debug(`Accessory '${accessory.displayName}' performing v${accessory.context.VERSION}...v2.1 upgrade.`);
+
+                        // Rename existing services to be HB v2 compliant.
+                        const accessorySwitchService = accessory.getServiceById(SERVICE_INFO.POWER.legacy_uuid, SERVICE_INFO.POWER.udst);
+                        if (accessorySwitchService !== undefined) {
+                            this._log.debug(`Service '${accessorySwitchService.displayName}' updating to ${SERVICE_INFO.POWER.uuid}`);
+                            accessorySwitchService.displayName = SERVICE_INFO.POWER.uuid;
+                        }
+                        const accessorLatencyService = accessory.getServiceById(SERVICE_INFO.LATENCY.legacy_uuid, SERVICE_INFO.LATENCY.udst);
+                        if (accessorLatencyService !== undefined) {
+                            this._log.debug(`Service '${accessorLatencyService.displayName}' updating to ${SERVICE_INFO.LATENCY.uuid}`);
+                            accessorLatencyService.displayName = SERVICE_INFO.LATENCY.uuid;
+                        }
+                        const accessoryJitterService = accessory.getServiceById(SERVICE_INFO.JITTER.legacy_uuid, SERVICE_INFO.JITTER.udst);
+                        if (accessoryJitterService !== undefined) {
+                            this._log.debug(`Service '${accessoryJitterService.displayName}' updating to ${SERVICE_INFO.JITTER.uuid}`);
+                            accessoryJitterService.displayName = SERVICE_INFO.JITTER.uuid;
+                        }
+                        const accessoryLossService = accessory.getServiceById(SERVICE_INFO.LOSS.legacy_uuid, SERVICE_INFO.LOSS.udst);
+                        if (accessoryLossService !== undefined) {
+                            this._log.debug(`Service '${accessoryLossService.displayName}' updating to ${SERVICE_INFO.LOSS.uuid}`);
+                            accessoryLossService.displayName = SERVICE_INFO.LOSS.uuid;
+                        }
+                        const accessoryExportService = accessory.getServiceById(SERVICE_INFO.EXPORT.legacy_uuid, SERVICE_INFO.EXPORT.udst);
+                        if (accessoryExportService !== undefined) {
+                            this._log.debug(`Service '${accessoryExportService.displayName}' updating to ${SERVICE_INFO.EXPORT.uuid}`);
+                            accessoryExportService.displayName = SERVICE_INFO.EXPORT.uuid;
+                        }
+
+                        // Homebridge v2 requires alpha-numeric names only (including spaces and apostrophes).
+                        accessory.displayName = accessory.displayName.replaceAll('.', ' ');
+                        this._log.debug(`Renamed Accessory to '${accessory.displayName}'.`);
+                    }
+
+                    // Update the version of the accessory. This is used for depersistence
+                    accessory.context.VERSION = ACCESSORY_VERSION;
+
+                    // Update the flag
+                    versionManaged = true;
+                }
+                // Downgrading...
+                else {
+                    this._log.debug(`Accessory '${accessory.displayName}' downgrade is not unsupported Current:v${accessory.context.VERSION} PLUGIN:v${ACCESSORY_VERSION}`);
+                }
+            }
+            else {
+                this._log.debug(`Accessory '${accessory.displayName}' downgrading from v${accessory.context.VERSION} to v${ACCESSORY_VERSION}`);
+            }
+        }
+        else {
+            this._log.debug(`Invalid accessory version for '${accessory.displayName}'. Version:'${accessory.context.VERSION}'`);
+        }
+
+        return versionManaged;
     }
 
     /**
@@ -651,18 +750,11 @@ class NetworkPerformanceMonitorPlatform {
             }
         }
         if (!found) {
-            // Configure the accessory (also registers it.)
-            try {
-                this._configureAccessory(accessory);
-            }
-            catch (error) {
-                this._log(`Unable to configure accessory ${accessory.displayName}. Version:${accessory.context.VERSION}. Error:${error}`);
-                // We don't know where the exception happened. Ensure that the accessory is in the map.
-                const id = accessory.context.ID;
-                if (!this._accessories.has(id)) {
-                    // Update our accessory listing
-                    this._accessories.set(id, accessory);
-                }
+            // Just register the accessory. We will configure it later.
+            const id = accessory.context.ID;
+            if (!this._accessories.has(id)) {
+                // Update our accessory listing
+                this._accessories.set(id, accessory);
             }
         }
     }
@@ -700,7 +792,8 @@ class NetworkPerformanceMonitorPlatform {
         // Create the platform accesory
         // uuid must be generated from a unique but not changing data source, 'id' should not be used in the most cases. But works in this specific example.
         const uuid = _hap.uuid.generate(id);
-        const accessory = new _PlatformAccessory(target.TargetDestination, uuid);
+        const name = target.TargetDestination.replaceAll('.', ' '); // Names in homebridge v2 should be alpha-numberic and spaces only.
+        const accessory = new _PlatformAccessory(name, uuid);
 
         // Add the identifier to the accessory's context. Used for remapping on depersistence.
         accessory.context.ID = id;
@@ -1098,7 +1191,12 @@ class NetworkPerformanceMonitorPlatform {
         }
 
         // Invoke the callback function with our result.
-        callback(status, result);
+        try {
+            callback(status, result);
+        }
+        catch (err) {
+            this._log.debug(`  Unexpected error encountered during callback: ${id} ${err.message}`);
+        }
     }
 
     /**
