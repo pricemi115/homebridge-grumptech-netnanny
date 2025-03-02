@@ -3,6 +3,10 @@ Change history for _homebridge-grumptech-netnanny_
 
 ---
 ---
+## [1.7.0] 2025-MAR-30 - Spring update
+### What's new
+- Added support for Homebridge v2
+- Updated dependencies
 
 ## [1.6.1] 2024-JAN-28 - Winter update
 ### What's new
