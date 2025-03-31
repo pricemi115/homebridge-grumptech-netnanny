@@ -49,7 +49,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/pricemi115/homebridge-grumptech-netnanny.git"
+    "url": "git+https://github.com/pricemi115/homebridge-grumptech-netnanny.git"
   },
   "bugs": {
     "url": "https://github.com/pricemi115/homebridge-grumptech-netnanny/issues"
